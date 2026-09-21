@@ -23,11 +23,10 @@ app.secret_key = 'ncp_secret_key'
 
 # Railway ke actual variable names se values uthane ke liye:
 DB_CONFIG = {
-    'host': os.environ.get('MYSQLHOST', 'localhost'),
-    'user': os.environ.get('MYSQLUSER') or os.environ.get('MYSQL_USER', 'root'),
-    'password': os.environ.get('MYSQLPASSWORD') or os.environ.get('MYSQL_ROOT_PASSWORD', ''),
-    'database': os.environ.get('MYSQLDATABASE') or os.environ.get('MYSQL_DATABASE', 'ncp_portal'),
-    'port': int(os.environ.get('MYSQLPORT', 3306))
+    'host': 'localhost',
+    'user': 'root',
+    'password': '',
+    'database': 'ncp_portal'
 }
 
 def get_db_connection():
