@@ -20,13 +20,21 @@ app = Flask(__name__)
 app.secret_key = 'ncp_secret_key'
 
 # MySQL Database Configuration
-import os
 
+# Railway ke actual variable names se values uthane ke liye:
 DB_HOST = os.environ.get('MYSQLHOST', 'localhost')
-DB_USER = os.environ.get('MYSQLUSER', 'root')
-DB_PASSWORD = os.environ.get('MYSQLPASSWORD', '')
-DB_NAME = os.environ.get('MYSQLDATABASE', 'ncp_portal')
+DB_USER = os.environ.get('MYSQLUSER') or os.environ.get('MYSQL_USER', 'root')
+DB_PASSWORD = os.environ.get('MYSQLPASSWORD') or os.environ.get('MYSQL_ROOT_PASSWORD', '')
+DB_NAME = os.environ.get('MYSQLDATABASE') or os.environ.get('MYSQL_DATABASE', 'ncp_portal')
 DB_PORT = int(os.environ.get('MYSQLPORT', 3306))
+
+connection = pymysql.connect(
+    host=DB_HOST,
+    user=DB_USER,
+    password=DB_PASSWORD,
+    database=DB_NAME,
+    port=DB_PORT
+)
 
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
