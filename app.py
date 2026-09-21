@@ -21,10 +21,11 @@ app.secret_key = 'ncp_secret_key'
 
 # MySQL Database Configuration
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',
-    'database': 'ncp_portal'
+    'host': os.environ.get('MYSQLHOST', 'localhost'),
+    'user': os.environ.get('MYSQLUSER', 'root'),
+    'password': os.environ.get('MYSQLPASSWORD', ''),
+    'database': os.environ.get('MYSQLDATABASE', 'ncp_portal'),
+    'port': int(os.environ.get('MYSQLPORT', 3306))
 }
 
 def get_db_connection():
