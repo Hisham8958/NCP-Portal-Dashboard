@@ -20,13 +20,13 @@ app = Flask(__name__)
 app.secret_key = 'ncp_secret_key'
 
 # MySQL Database Configuration
-DB_CONFIG = {
-    'host': os.environ.get('MYSQLHOST', 'localhost'),
-    'user': os.environ.get('MYSQLUSER', 'root'),
-    'password': os.environ.get('MYSQLPASSWORD', ''),
-    'database': os.environ.get('MYSQLDATABASE', 'ncp_portal'),
-    'port': int(os.environ.get('MYSQLPORT', 3306))
-}
+import os
+
+DB_HOST = os.environ.get('MYSQLHOST', 'localhost')
+DB_USER = os.environ.get('MYSQLUSER', 'root')
+DB_PASSWORD = os.environ.get('MYSQLPASSWORD', '')
+DB_NAME = os.environ.get('MYSQLDATABASE', 'ncp_portal')
+DB_PORT = int(os.environ.get('MYSQLPORT', 3306))
 
 def get_db_connection():
     return mysql.connector.connect(**DB_CONFIG)
