@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Task Reports & Performance - NCP Portal{% endblock %}
+
+{% block header_title %}Task Execution & Status Tracking{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-card {
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-md);
+        background: var(--card-bg);
+        box-shadow: var(--shadow-xs);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .filter-bar {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-md);
+        padding: 16px 20px;
+        margin-bottom: 24px;
+    }
+    @media print {
+        .filter-bar, .btn-print, .sidebar, .navbar { display: none !important; }
+        .report-card { border: none; box-shadow: none; padding: 0; }
+        body { background: white !important; color: black !important; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<p class="text-muted mb-4" style="font-size: 0.85rem;">Granular tracking of individual task performance, execution timelines, and resource assignments.</p>
+
+<!-- Filter & Export Toolbar -->
+<div class="filter-bar">
+    <form method="GET" action="{{ url_for('task_reports') }}" class="row g-3 align-items-end">
+        
+        <!-- Super Admin Only: Team Member Filter Dropdown -->
+        {% if session.get('is_super_admin') or session.get('role') == 'Super Admin' %}
+        <div class="col-md-3">
+            <label class="form-label font-monospace text-uppercase" style="font-size: 0.7rem;">Team Member</label>
+            <select name="member_id" class="form-select form-select-sm">
+                <option value="All">-- All Team Members --</option>
+                {% for m in all_team_members %}
+                <option value="{{ m.id }}" {% if selected_member_id|string == m.id|string %}selected{% endif %}>{{ m.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="col-md-{% if session.get('is_super_admin') or session.get('role') == 'Super Admin' %}3{% else %}4{% endif %}">
+            <label class="form-label font-monospace text-uppercase" style="font-size: 0.7rem;">Status</label>
+            <select name="status" class="form-select form-select-sm">
+                <option value="All" {% if selected_status == 'All' %}selected{% endif %}>All Statuses</option>
+                <option value="Initiated" {% if selected_status == 'Initiated' %}selected{% endif %}>Initiated</option>
+                <option value="In Progress" {% if selected_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label font-monospace text-uppercase" style="font-size: 0.7rem;">Start Date From</label>
+            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date_filter }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label font-monospace text-uppercase" style="font-size: 0.7rem;">End Date To</label>
+            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date_filter }}">
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-dark btn-sm w-100"><i class="bi bi-filter"></i> Apply</button>
+            <button type="button" onclick="window.print()" class="btn btn-outline-secondary btn-sm btn-print" title="Print / Export PDF"><i class="bi bi-printer"></i></button>
+        </div>
+    </form>
+</div>
+
+<!-- Task Execution Table Section -->
+<div class="report-card">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
+        <h5 class="fw-bold mb-0" style="font-family: 'Sora', sans-serif; font-size: 0.95rem;">Tasks List</h5>
+        
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <!-- Search Bar Input -->
+            <div class="input-group input-group-sm" style="width: 220px;">
+                <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                <input type="text" id="taskSearchInput" class="form-control" placeholder="Search tasks..." onkeyup="filterTaskTable()">
+            </div>
+
+            <!-- Entries Selector Control -->
+            <div class="d-flex align-items-center gap-2" style="font-size: 0.8rem;">
+                <span class="text-muted">Show</span>
+                <select id="entriesSelect" class="form-select form-select-sm" style="width: 75px;" onchange="changeTableLimit()">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span class="text-muted">entries</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="taskReportTable" style="font-size: 0.85rem;">
+            <thead class="table-light">
+                <tr>
+                    <th>Task Name</th>
+                    <th>Project Name</th>
+                    <th>Assigned To</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Timeline</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in report_tasks %}
+                <tr class="task-row">
+                    <td class="fw-semibold">{{ t.name }}</td>
+                    <td class="text-muted">{{ t.project_name or 'N/A' }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ t.assigned_member_name or 'Unassigned' }}</span></td>
+                    <td>
+                        {% set t_stat = t.status | string | trim %}
+                        <span class="badge {% if not t_stat or t_stat == 'None' or t_stat == '' or t_stat == 'Initiated' or t_stat == 'Active' %}bg-teal text-white{% elif t_stat == 'In Progress' %}bg-warning text-dark{% else %}bg-success text-white{% endif %}" style="font-size: 0.7rem; {% if not t_stat or t_stat == 'None' or t_stat == '' or t_stat == 'Initiated' or t_stat == 'Active' %}background-color: #0f766e !important;{% endif %}">
+                            {{ t_stat if t_stat and t_stat != 'None' and t_stat != '' else 'Initiated' }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="progress w-100" style="height: 6px;">
+                                <div class="progress-bar bg-dark" style="width: {{ t.progress or 0 }}%;"></div>
+                            </div>
+                            <span class="font-monospace" style="font-size: 0.75rem;">{{ t.progress or 0 }}%</span>
+                        </div>
+                    </td>
+                    <td class="text-muted" style="font-size: 0.78rem;">
+                        {% if t.start_date %}{{ t.start_date | string | regex_replace('^(\\d{4})-(\\d{2})-(\\d{2})$', '\\3/\\2/\\1') }}{% else %}N/A{% endif %} 
+                        to 
+                        {% if t.end_date %}{{ t.end_date | string | regex_replace('^(\\d{4})-(\\d{2})-(\\d{2})$', '\\3/\\2/\\1') }}{% else %}N/A{% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr id="noRecordsRow">
+                    <td colspan="6" class="text-center text-muted py-4">No task records found for the selected criteria.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination Footer UI -->
+    <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top" style="font-size: 0.8rem;">
+        <span class="text-muted" id="tableInfo">Showing entries</span>
+    </div>
+</div>
+
+<script>
+    function filterTaskTable() {
+        let input = document.getElementById('taskSearchInput');
+        let filter = input.value.toLowerCase();
+        let rows = document.querySelectorAll('.task-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            let text = row.textContent || row.innerText;
+            if (text.toLowerCase().indexOf(filter) > -1) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        document.getElementById('tableInfo').innerText = `Showing ${visibleCount} filtered entries`;
+    }
+
+    function changeTableLimit() {
+        const limit = document.getElementById('entriesSelect').value;
+        const rows = document.querySelectorAll('.task-row');
+        let visibleCount = 0;
+        
+        rows.forEach((row, index) => {
+            if (index < limit) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        document.getElementById('tableInfo').innerText = `Showing 1 to ${Math.min(limit, rows.length)} of ${rows.length} entries`;
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        changeTableLimit();
+    });
+</script>
+{% endblock %}

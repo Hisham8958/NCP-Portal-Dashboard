@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+
+{% block title %}Messages Hub - NCP Portal{% endblock %}
+
+{% block header_title %}Messages Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-sidebar-list {
+        height: calc(100vh - 220px);
+        overflow-y: auto;
+    }
+    .chat-item {
+        transition: background-color 0.2s ease;
+        text-decoration: none;
+        border-left: 3px solid transparent;
+    }
+    .chat-item:hover {
+        background-color: var(--bs-body-tertiary);
+    }
+    .chat-item.active {
+        background-color: rgba(15, 118, 110, 0.08);
+        border-left-color: var(--primary-accent);
+    }
+    .chat-item.unread {
+        background-color: rgba(33, 37, 41, 0.06);
+    }
+    .chat-item.unread .chat-name,
+    .chat-item.unread .chat-preview {
+        font-weight: 700 !important;
+        color: var(--bs-dark) !important;
+    }
+    .chat-messages-box {
+        height: calc(100vh - 310px);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+    }
+    .message-bubble {
+        max-width: 70%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        word-break: break-word;
+    }
+    .message-incoming {
+        background-color: var(--bs-body-tertiary);
+        color: var(--ink);
+        border-bottom-left-radius: 2px;
+        align-self: flex-start;
+    }
+    .message-outgoing {
+        background-color: var(--primary-accent);
+        color: #fff;
+        border-bottom-right-radius: 2px;
+        align-self: flex-end;
+    }
+    .chat-attachment-img {
+        max-width: 200px;
+        max-height: 150px;
+        border-radius: 8px;
+        object-fit: cover;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Left Column: Users List / Inbox Sidebar -->
+    <div class="col-lg-4 col-md-5">
+        <div class="card h-100 shadow-sm border-0 rounded-3">
+            <div class="card-header bg-transparent py-3 border-bottom">
+                <h6 class="mb-0 fw-semibold fs-6">Team Directory / Chats</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="chat-sidebar-list">
+                    {% if all_users %}
+                        {% for u_item in all_users %}
+                            <a href="{{ url_for('messages_hub', receiver_id=u_item.id) }}" class="chat-item d-flex align-items-center gap-3 p-3 border-bottom {% if active_receiver and active_receiver.id == u_item.id %}active{% endif %} {% if u_item.has_unseen %}unread{% endif %}">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white flex-shrink-0 shadow-sm" style="width: 40px; height: 40px; background-color: var(--primary-accent); font-size: 14px;">
+                                    {{ u_item.name[0] | upper }}
+                                </div>
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <h6 class="chat-name mb-0 text-secondary fw-medium text-truncate" style="font-size: 0.85rem;">{{ u_item.name }}</h6>
+                                        {% if u_item.unread_count and u_item.unread_count > 0 %}
+                                            <span class="badge rounded-pill bg-danger" style="font-size: 0.6rem;">{{ u_item.unread_count }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="chat-preview mb-0 text-muted text-truncate" style="font-size: 0.72rem;">{{ u_item.designation or u_item.gmail }}</p>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-5" style="font-size: 0.85rem;">
+                            <i class="bi bi-people fs-3 text-black-50 mb-2 d-block"></i>
+                            No other users found
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Active Chat Window -->
+    <div class="col-lg-8 col-md-7">
+        <div class="card h-100 shadow-sm border-0 rounded-3 d-flex flex-column">
+            {% if active_receiver %}
+                <!-- Chat Header -->
+                <div class="card-header bg-transparent py-3 border-bottom d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white flex-shrink-0 shadow-sm" style="width: 38px; height: 38px; background-color: var(--primary-accent); font-size: 13px;">
+                            {{ active_receiver.name[0] | upper }}
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.9rem;">{{ active_receiver.name }}</h6>
+                            <span class="text-muted" style="font-size: 0.7rem;">{{ active_receiver.designation or active_receiver.gmail }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Header Options Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light border-0 rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3" style="font-size: 0.8rem;">
+                            <li>
+                                <a class="dropdown-item text-danger d-flex align-items-center gap-2 py-1.5" href="#" id="clearChatBtn" data-receiver-id="{{ active_receiver.id }}">
+                                    <i class="bi bi-trash"></i> Clear Chat
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Chat Messages Body -->
+                <div class="chat-messages-box p-3 gap-2" id="chatMessagesContainer">
+                    {% if chat_messages %}
+                        {% for msg in chat_messages %}
+                            {% if msg.sender_id == session.get('user_id') %}
+                                <!-- Outgoing Message -->
+                                <div class="message-bubble message-outgoing shadow-sm position-relative pe-4">
+                                    {% if msg.attachment %}
+                                        <div class="mb-2">
+                                            {% set file_url = url_for('static', filename=msg.attachment if msg.attachment.startswith('uploads/') else 'uploads/' + msg.attachment) %}
+                                            {% set orig_name = msg.attachment.split('_')[-1] %}
+                                            {% if msg.attachment.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')) %}
+                                                <div class="d-flex flex-column gap-1">
+                                                    <img src="{{ file_url }}" alt="Attachment" class="chat-attachment-img mb-1">
+                                                    <div class="d-flex gap-2" style="font-size: 0.75rem;">
+                                                        <a href="{{ file_url }}" target="_blank" class="text-white text-decoration-underline">Open</a>
+                                                        <span class="text-white-50">|</span>
+                                                        <a href="{{ file_url }}" download="{{ orig_name }}" class="text-white text-decoration-underline">Download</a>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <div class="p-2 rounded bg-white bg-opacity-10 border border-light border-opacity-25" style="font-size: 0.8rem;">
+                                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                                        <i class="bi bi-file-earmark-text fs-5"></i>
+                                                        <div class="overflow-hidden">
+                                                            <span class="d-block text-truncate fw-medium text-white">{{ orig_name }}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex gap-3 pt-1 border-top border-light border-opacity-25" style="font-size: 0.75rem;">
+                                                        <a href="{{ file_url }}" target="_blank" class="text-white text-decoration-underline">Open</a>
+                                                        <a href="{{ file_url }}" download="{{ orig_name }}" class="text-white text-decoration-underline">Download</a>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                    <p class="mb-1" id="msg-text-{{ msg.id }}">{{ msg.message }}</p>
+                                    
+                                    <div class="position-absolute top-0 end-0 mt-1 me-1 dropdown">
+                                        <a class="text-white text-decoration-none dropdown-toggle hidden-arrow" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.7rem; opacity: 0.8;">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </a>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow border py-1 rounded-2" style="font-size: 0.75rem; width: 130px;">
+                                            <li>
+                                                <button class="dropdown-item py-1 px-2 d-flex align-items-center gap-2" onclick="enableEditMessage('{{ msg.id }}')">
+                                                    <i class="bi bi-pencil text-secondary"></i> Edit
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item py-1 px-2 d-flex align-items-center gap-2 text-danger" onclick="openDeleteModal('{{ msg.id }}', true)">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between align-items-center mt-1" style="font-size: 0.6rem; opacity: 0.9;">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span>{{ msg.timestamp.strftime('%H:%M') if msg.timestamp else '' }}</span>
+                                            {% if msg.is_edited %}
+                                                <span class="fst-italic text-white-50">(edited)</span>
+                                            {% endif %}
+                                        </div>
+                                        <span class="message-status ms-2">
+                                            {% if msg.is_read == 1 %}
+                                                <span class="text-white fw-bold">Seen</span>
+                                            {% else %}
+                                                <span class="text-white-50">Sent</span>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <!-- Incoming Message -->
+                                <div class="message-bubble message-incoming shadow-sm position-relative pe-4">
+                                    {% if msg.attachment %}
+                                        <div class="mb-2">
+                                            {% set file_url = url_for('static', filename=msg.attachment if msg.attachment.startswith('uploads/') else 'uploads/' + msg.attachment) %}
+                                            {% set orig_name = msg.attachment.split('_')[-1] %}
+                                            {% if msg.attachment.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')) %}
+                                                <div class="d-flex flex-column gap-1">
+                                                    <img src="{{ file_url }}" alt="Attachment" class="chat-attachment-img mb-1">
+                                                    <div class="d-flex gap-2" style="font-size: 0.75rem;">
+                                                        <a href="{{ file_url }}" target="_blank" class="text-primary text-decoration-underline">Open</a>
+                                                        <span class="text-muted">|</span>
+                                                        <a href="{{ file_url }}" download="{{ orig_name }}" class="text-primary text-decoration-underline">Download</a>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <div class="p-2 rounded border border-opacity-25 bg-white shadow-sm" style="font-size: 0.8rem;">
+                                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                                        <i class="bi bi-file-earmark-text fs-5 text-primary"></i>
+                                                        <div class="overflow-hidden">
+                                                            <span class="d-block text-truncate fw-medium text-dark">{{ orig_name }}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex gap-3 pt-1 border-top" style="font-size: 0.75rem;">
+                                                        <a href="{{ file_url }}" target="_blank" class="text-primary text-decoration-underline">Open</a>
+                                                        <a href="{{ file_url }}" download="{{ orig_name }}" class="text-primary text-decoration-underline">Download</a>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                    <p class="mb-1 text-dark" id="msg-text-{{ msg.id }}">{{ msg.message }}</p>
+                                    
+                                    <div class="position-absolute top-0 end-0 mt-1 me-1 dropdown">
+                                        <a class="text-muted text-decoration-none dropdown-toggle hidden-arrow" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.7rem;">
+                                            <i class="bi bi-three-dots-vertical"></i>
+                                        </a>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow border py-1 rounded-2" style="font-size: 0.75rem; width: 130px;">
+                                            <li>
+                                                <button class="dropdown-item py-1 px-2 d-flex align-items-center gap-2 text-danger" onclick="openDeleteModal('{{ msg.id }}', false)">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="d-flex justify-content-end align-items-center gap-1 text-muted" style="font-size: 0.6rem;">
+                                        <span>{{ msg.timestamp.strftime('%H:%M') if msg.timestamp else '' }}</span>
+                                        {% if msg.is_edited %}
+                                            <span class="fst-italic">(edited)</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted my-auto" style="font-size: 0.85rem;">
+                            <i class="bi bi-chat-square-text fs-2 text-black-50 mb-2 d-block"></i>
+                            No messages yet. Start the conversation below!
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Chat Message Input Footer -->
+                <div class="card-footer bg-transparent border-top p-3">
+                    <form action="{{ url_for('send_message') }}" method="POST" enctype="multipart/form-data" class="d-flex flex-column gap-2" id="chatMessageForm">
+                        <input type="hidden" name="receiver_id" value="{{ active_receiver.id }}">
+                        
+                        <!-- File Attachment Preview Area -->
+                        <div id="attachmentPreviewContainer" class="d-none align-items-center justify-content-between px-3 py-1 bg-light rounded-2 border" style="font-size: 0.75rem;">
+                            <div class="d-flex align-items-center gap-2 text-truncate">
+                                <i class="bi bi-paperclip text-primary"></i>
+                                <span id="attachmentFileName" class="text-truncate fw-medium"></span>
+                            </div>
+                            <button type="button" class="btn-close" style="font-size: 0.6rem;" id="removeAttachmentBtn"></button>
+                        </div>
+
+                        <div class="d-flex gap-2 align-items-center">
+                            <label for="chatFileInput" class="btn btn-sm btn-light border-0 rounded-circle text-muted mb-0 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; cursor: pointer;" title="Attach file">
+                                <i class="bi bi-paperclip fs-6"></i>
+                            </label>
+                            <input type="file" name="attachment" id="chatFileInput" class="d-none">
+                            
+                            <input type="text" name="message" id="chatMessageInput" class="form-control form-control-sm rounded-pill px-3" placeholder="Type your message here..." autocomplete="off">
+                            
+                            <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4 d-flex align-items-center gap-1" style="background-color: var(--primary-accent); border: none;">
+                                <i class="bi bi-send-fill"></i> Send
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            {% else %}
+                <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-5 my-auto">
+                    <div class="rounded-circle bg-body-tertiary p-4 mb-3 text-muted shadow-sm">
+                        <i class="bi bi-chat-dots fs-1"></i>
+                    </div>
+                    <h5 class="fw-semibold text-dark fs-6">Select a chat to start messaging</h5>
+                    <p class="text-muted small mb-0" style="max-width: 280px;">Choose a team member from the directory list on the left to view conversations and send messages.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Edit Message Modal -->
+<div class="modal fade" id="editMessageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold" style="font-size: 0.9rem;">Edit Message</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editMessageForm" method="POST">
+                <div class="modal-body py-3">
+                    <textarea name="updated_message" id="editMessageInput" class="form-control form-control-sm rounded-2" rows="3" required style="font-size: 0.85rem;"></textarea>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light btn-sm rounded-pill px-3" data-bs-dismiss="modal" style="font-size: 0.75rem;">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3" style="font-size: 0.75rem; background-color: var(--primary-accent); border: none;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Option Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold" style="font-size: 0.9rem;">Delete Message</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="deleteMessageForm" method="POST">
+                <div class="modal-body py-2 text-muted" style="font-size: 0.82rem;">
+                    Select how you would like to delete this message.
+                </div>
+                <div class="modal-footer border-0 pt-0 d-flex flex-column gap-2">
+                    <button type="submit" name="delete_type" value="me" class="btn btn-outline-secondary btn-sm w-100 rounded-pill" style="font-size: 0.75rem;">Delete for Me</button>
+                    <button type="submit" id="deleteEveryoneBtn" name="delete_type" value="everyone" class="btn btn-danger btn-sm w-100 rounded-pill" style="font-size: 0.75rem;">Delete for Everyone</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function enableEditMessage(messageId) {
+        const messageText = document.getElementById('msg-text-' + messageId).innerText;
+        document.getElementById('editMessageInput').value = messageText;
+        document.getElementById('editMessageForm').action = "/edit_message/" + messageId;
+        
+        var editModal = new bootstrap.Modal(document.getElementById('editMessageModal'));
+        editModal.show();
+    }
+
+    function openDeleteModal(messageId, isSender) {
+        document.getElementById('deleteMessageForm').action = "/delete_message/" + messageId;
+        
+        const everyoneBtn = document.getElementById('deleteEveryoneBtn');
+        if (isSender) {
+            everyoneBtn.style.display = 'block';
+        } else {
+            everyoneBtn.style.display = 'none';
+        }
+
+        var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const clearBtn = document.getElementById('clearChatBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const receiverId = this.getAttribute('data-receiver-id');
+                
+                if (confirm("Are you sure you want to clear this chat? All messages will be permanently removed from your view.")) {
+                    fetch('/clear_chat/' + receiverId, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            location.reload();
+                        } else {
+                            alert("Failed to clear chat. Please try again.");
+                        }
+                    })
+                    .catch(err => console.error('Error:', err));
+                }
+            });
+        }
+
+        const fileInput = document.getElementById('chatFileInput');
+        const previewContainer = document.getElementById('attachmentPreviewContainer');
+        const fileNameSpan = document.getElementById('attachmentFileName');
+        const removeFileBtn = document.getElementById('removeAttachmentBtn');
+
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    fileNameSpan.textContent = this.files[0].name;
+                    previewContainer.classList.remove('d-none');
+                    previewContainer.classList.add('d-flex');
+                }
+            });
+        }
+
+        if (removeFileBtn) {
+            removeFileBtn.addEventListener('click', function() {
+                fileInput.value = '';
+                previewContainer.classList.remove('d-flex');
+                previewContainer.classList.add('d-none');
+            });
+        }
+
+        // Instant Scroll Setup & AJAX Form Submission to Prevent Page Reload
+        const container = document.getElementById('chatMessagesContainer');
+        if (container) {
+            const scrollKey = "chat_scroll_" + "{{ active_receiver.id if active_receiver else 'none' }}";
+            
+            const savedScroll = sessionStorage.getItem(scrollKey);
+            if (savedScroll !== null) {
+                container.scrollTop = parseInt(savedScroll, 10);
+            } else {
+                container.scrollTop = container.scrollHeight;
+            }
+
+            container.addEventListener('scroll', function() {
+                sessionStorage.setItem(scrollKey, container.scrollTop);
+            });
+
+            const chatForm = document.getElementById('chatMessageForm');
+            if (chatForm) {
+                chatForm.addEventListener('submit', function(e) {
+                    e.preventDefault(); // Stop normal page-reloading submit
+
+                    const formData = new FormData(chatForm);
+                    
+                    // Don't send if both message input and file are empty
+                    const msgInputVal = document.getElementById('chatMessageInput').value.trim();
+                    if (!msgInputVal && (!fileInput.files || fileInput.files.length === 0)) {
+                        return;
+                    }
+
+                    fetch(chatForm.action, {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // Reset input and attachment preview instantly without reloading
+                            chatForm.reset();
+                            previewContainer.classList.remove('d-flex');
+                            previewContainer.classList.add('d-none');
+                            
+                            sessionStorage.removeItem(scrollKey);
+                            // Refresh just the chat container or reload silently / fetch latest messages
+                            location.reload(); // Reloads smoothly or keeps state. For true instant append without reload, location.reload can be kept if backend handles redirect, but since it's AJAX it updates smoothly. Let's make it smooth:
+                        } else {
+                            alert("Failed to send message.");
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Fallback to normal submit if fetch encounters network issue
+                        chatForm.submit();
+                    });
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - NCP Portal</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts (Sora for display, Inter for body) -->
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --body-bg: #f4f5f8;
+            --ink: #0f172a;
+            --primary-accent: #0f766e;
+            --primary-accent-bright: #14b8a6;
+            --card-border: rgba(15, 23, 42, 0.08);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--body-bg);
+            background-image: radial-gradient(circle at 50% 0%, rgba(20, 184, 166, 0.08) 0%, rgba(244, 245, 248, 0) 50%);
+            color: var(--ink);
+            letter-spacing: -0.01em;
+            min-height: 100vh;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Sora', 'Inter', sans-serif;
+        }
+        .card {
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            background: #ffffff;
+            box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.07), 0 10px 15px -5px rgba(15, 23, 42, 0.04) !important;
+        }
+        .brand-badge {
+            background: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-family: 'Sora', sans-serif;
+            font-weight: 700;
+            box-shadow: 0 4px 14px rgba(20, 184, 166, 0.3);
+            display: inline-block;
+        }
+        .form-control, .form-select {
+            border: 1px solid #cbd5e1;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-accent-bright);
+            box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.12);
+        }
+        .btn-custom-dark {
+            background-color: #0f172a;
+            color: #fff;
+            transition: all 0.2s ease;
+        }
+        .btn-custom-dark:hover {
+            background-color: #1e293b;
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(15, 23, 42, 0.15);
+        }
+        .auth-link {
+            color: var(--primary-accent);
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .auth-link:hover {
+            color: var(--primary-accent-bright);
+            text-decoration: underline;
+        }
+
+        /* Password Strength Meter Styles */
+        .password-strength-bar {
+            height: 5px;
+            width: 100%;
+            background-color: #e2e8f0;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+            display: flex;
+        }
+        .password-strength-progress {
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="d-flex justify-content-center align-items-center py-5 px-3">
+
+    <div class="card p-4 p-md-5 my-auto" style="width: 460px; max-width: 100%;">
+        <div class="text-center mb-4">
+            <div class="mb-3">
+                <span class="brand-badge">NCP Portal</span>
+            </div>
+            <h3 class="fw-bold text-dark fs-4 mb-1">
+                {% if session.get('pending_user_data') %}
+                    Verify OTP
+                {% else %}
+                    Create Account
+                {% endif %}
+            </h3>
+            <p class="text-muted small">
+                {% if session.get('pending_user_data') %}
+                    Enter the 6-digit code sent to your Gmail
+                {% else %}
+                    Please fill in the details to register
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Flash messages display -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category in ['success', 'danger', 'warning', 'info'] else 'info' }} alert-dismissible fade show border-0 shadow-sm small py-2 mb-3 rounded-3" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm small py-2 mb-3 rounded-3" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ error }}
+                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
+
+        <form action="{{ url_for('register') }}" method="POST">
+            
+            {% if session.get('pending_user_data') %}
+                <!-- OTP Verification Stage -->
+                <input type="hidden" name="otp_verify_stage" value="1">
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small text-muted">Enter OTP Code</label>
+                    <input type="text" class="form-control rounded-pill px-3 py-2.5 text-center fs-3 tracking-widest fw-bold" name="otp" required placeholder="------" maxlength="6" autocomplete="one-time-code">
+                </div>
+
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-custom-dark fw-semibold py-2.5 rounded-pill shadow-sm">Verify & Complete</button>
+                </div>
+
+                <!-- Resend OTP Link -->
+                <div class="text-center mt-3">
+                    <p class="small text-muted mb-0">Didn't receive code? <a href="{{ url_for('resend_otp') }}" class="auth-link">Resend OTP</a></p>
+                </div>
+            {% else %}
+                <!-- Normal Registration Fields -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small text-muted">Full Name</label>
+                    <input type="text" class="form-control rounded-pill px-3" name="name" required placeholder="Enter your full name">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small text-muted">Gmail (Username)</label>
+                    <input type="email" class="form-control rounded-pill px-3" name="gmail" required placeholder="name@example.com">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small text-muted">Department</label>
+                    <select name="department_id" class="form-select rounded-pill px-3" required>
+                        <option value="" disabled selected>Select Department</option>
+                        {% for dept in departments %}
+                            <option value="{{ dept.id }}">{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small text-muted">Designation</label>
+                    <input type="text" class="form-control rounded-pill px-3" name="designation" placeholder="e.g. Software Engineer">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold small text-muted">Password</label>
+                    <input type="password" class="form-control rounded-pill px-3" id="password" name="password" required 
+                           pattern="(?=.*\d)(?=.*[A-Za-z])(?=.*[@$!%*?&._#]).{8,}" 
+                           placeholder="••••••••">
+                    
+                    <!-- Live Strength Indicator UI -->
+                    <div class="password-strength-bar">
+                        <div id="strength-progress" class="password-strength-progress"></div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-1">
+                        <small id="strength-text" class="text-muted" style="font-size: 0.73rem;">Min 8 chars, 1 letter, 1 number, 1 special char</small>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold small text-muted">Re-enter Password</label>
+                    <input type="password" class="form-control rounded-pill px-3" id="confirm_password" name="confirm_password" required placeholder="••••••••">
+                    <!-- Live Match Status UI -->
+                    <div class="mt-1">
+                        <small id="match-text" style="font-size: 0.73rem;"></small>
+                    </div>
+                </div>
+
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-custom-dark fw-semibold py-2.5 rounded-pill shadow-sm">Get OTP & Register</button>
+                </div>
+
+                <div class="text-center mt-3">
+                    <p class="small text-muted mb-0">Already have an account? <a href="{{ url_for('login') }}" class="auth-link">Login here</a></p>
+                </div>
+            {% endif %}
+
+        </form>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Real-time Password Strength & Match Checker Script -->
+    <script>
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+        const strengthProgress = document.getElementById('strength-progress');
+        const strengthText = document.getElementById('strength-text');
+        const matchText = document.getElementById('match-text');
+
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function() {
+                const val = passwordInput.value;
+                let score = 0;
+
+                if (val.length === 0) {
+                    strengthProgress.style.width = '0%';
+                    strengthText.textContent = 'Min 8 chars, 1 letter, 1 number, 1 special char';
+                    strengthText.style.color = '#6c757d';
+                    checkPasswordMatch();
+                    return;
+                }
+
+                // Checks
+                if (val.length >= 8) score++;
+                if (/[A-Za-z]/.test(val)) score++;
+                if (/\d/.test(val)) score++;
+                if (/[@$!%*?&._#]/.test(val)) score++;
+
+                // Visual update based on score
+                if (score <= 2) {
+                    strengthProgress.style.width = '33%';
+                    strengthProgress.style.backgroundColor = '#dc3545'; // Bad (Red)
+                    strengthText.textContent = 'Weak / Bad password';
+                    strengthText.style.color = '#dc3545';
+                } else if (score === 3) {
+                    strengthProgress.style.width = '66%';
+                    strengthProgress.style.backgroundColor = '#ffc107'; // Good (Yellow/Orange)
+                    strengthText.textContent = 'Good password';
+                    strengthText.style.color = '#e0a800';
+                } else if (score === 4) {
+                    strengthProgress.style.width = '100%';
+                    strengthProgress.style.backgroundColor = '#198754'; // Excellent (Green)
+                    strengthText.textContent = 'Excellent password!';
+                    strengthText.style.color = '#198754';
+                }
+                
+                checkPasswordMatch();
+            });
+        }
+
+        if (confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+        }
+
+        function checkPasswordMatch() {
+            if (!confirmPasswordInput.value) {
+                matchText.textContent = '';
+                return;
+            }
+            if (passwordInput.value === confirmPasswordInput.value) {
+                matchText.textContent = '✓ Passwords match';
+                matchText.style.color = '#198754';
+            } else {
+                matchText.textContent = '✕ Passwords do not match';
+                matchText.style.color = '#dc3545';
+            }
+        }
+    </script>
+</body>
+</html>

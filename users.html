@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Settings - NCP Portal</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Font (Inter) for Professional Look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+            letter-spacing: -0.01em;
+        }
+        .navbar-custom {
+            background-color: #0f172a !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        /* Dropdown styling for user profile info */
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 12px;
+            padding: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom mb-5 py-3 border-bottom border-secondary border-opacity-10 shadow-sm" style="background-color: #0f172a !important;">
+        <div class="container">
+            <!-- Brand / Logo -->
+            <a class="navbar-brand fw-bold d-flex align-items-center gap-2 text-white" href="{{ url_for('dashboard') }}">
+                <span class="text-white px-2 py-1 rounded-2 fs-6 fw-semibold" style="background-color: #6366f1;">NCP</span>
+                <span class="tracking-tight fs-5">Portal</span>
+            </a>
+            
+            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+                <!-- Center Nav Links -->
+                <ul class="navbar-nav mx-auto gap-2 my-2 my-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2 rounded-pill text-white {% if request.endpoint == 'dashboard' %}bg-secondary bg-opacity-25 fw-semibold shadow-xs{% else %}text-opacity-75{% endif %}" href="{{ url_for('dashboard') }}">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2 rounded-pill text-white {% if request.endpoint == 'projects' %}bg-secondary bg-opacity-25 fw-semibold shadow-xs{% else %}text-opacity-75{% endif %}" href="{{ url_for('projects') }}">Projects</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 py-2 rounded-pill text-white {% if request.endpoint == 'users_page' %}bg-secondary bg-opacity-25 fw-semibold shadow-xs{% else %}text-opacity-75{% endif %}" href="{{ url_for('users_page') }}">Profile</a>
+                    </li>
+                    {% if session.get('role') == 'Super Admin' %}
+                        <li class="nav-item">
+                            <a class="nav-link px-3 py-2 rounded-pill text-white {% if request.endpoint == 'departments_page' %}bg-secondary bg-opacity-25 fw-semibold shadow-xs{% else %}text-opacity-75{% endif %}" href="{{ url_for('departments_page') }}">Departments</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 py-2 rounded-pill text-white {% if request.endpoint == 'team_members_page' %}bg-secondary bg-opacity-25 fw-semibold shadow-xs{% else %}text-opacity-75{% endif %}" href="{{ url_for('team_members_page') }}">Team</a>
+                        </li>
+                    {% endif %}
+                </ul>
+
+                <!-- Right Side: User Profile Dropdown & Logout -->
+                <ul class="navbar-nav align-items-center">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 text-white bg-secondary bg-opacity-10 px-3 py-2 rounded-pill shadow-sm" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 28px; height: 28px; background-color: #6366f1; font-size: 12px;">
+                                {{ user.name[0] | upper if user and user.name else 'U' }}
+                            </div>
+                            <span class="fw-medium small">{{ user.name if user and user.name else 'My Profile' }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end mt-2" style="width: 260px;">
+                            <li class="px-3 py-2 border-bottom mb-2">
+                                <p class="mb-0 fw-bold text-dark text-truncate">{{ user.name if user and user.name else 'N/A' }}</p>
+                                <p class="mb-1 text-muted small text-truncate">{{ user.gmail if user and user.gmail else 'N/A' }}</p>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <span class="badge bg-light text-dark border px-2 py-1 small text-truncate" style="max-width: 120px;">{{ user.designation if user and user.designation else 'No Designation' }}</span>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1 small">{{ session.get('role', 'User') }}</span>
+                                </div>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 text-danger fw-medium py-2 rounded-2" href="{{ url_for('logout') }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-box-arrow-right" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a.5.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                                        <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                                    </svg>
+                                    Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container pb-5">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Current User Profile Form -->
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white p-4 border-bottom">
+                        <h5 class="fw-bold mb-0 text-secondary fs-6">Manage My Account</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">Full Name</label>
+                                <input type="text" name="name" class="form-control rounded-pill px-3 py-2" value="{{ user.name }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">Gmail / Email</label>
+                                <input type="email" name="gmail" class="form-control rounded-pill px-3 py-2" value="{{ user.gmail }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">Designation</label>
+                                <input type="text" name="designation" class="form-control rounded-pill px-3 py-2" value="{{ user.designation }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold small text-muted">New Password (optional)</label>
+                                <input type="password" name="password" class="form-control rounded-pill px-3 py-2" placeholder="Leave blank if you don't want to change">
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label fw-semibold small text-muted">Role</label>
+                                <input type="text" class="form-control rounded-pill px-3 py-2 bg-light" value="{{ session.get('role', 'User') }}" disabled>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-dark fw-semibold py-2 rounded-pill">Update Credentials</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

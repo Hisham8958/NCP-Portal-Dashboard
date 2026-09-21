@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+
+{% block title %}Departments - NCP Portal{% endblock %}
+
+{% block header_title %}Departments{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    .page-title-row h1 {
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        font-size: 1.35rem;
+        color: var(--ink);
+        margin: 0 0 4px 0;
+    }
+    .page-title-row p {
+        font-size: 0.85rem;
+        color: var(--ink-soft);
+        margin: 0;
+    }
+
+    .dept-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--card-border);
+    }
+    .dept-search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 200px;
+        max-width: 320px;
+    }
+    .dept-search-wrap i {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--ink-soft);
+        font-size: 0.85rem;
+        pointer-events: none;
+    }
+    .dept-search-wrap input {
+        padding-left: 36px;
+    }
+    .form-control, .form-select {
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--card-border);
+        font-size: 0.85rem;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-accent) 16%, transparent);
+    }
+
+    /* Table */
+    #departmentsTable thead th {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.66rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        background: color-mix(in srgb, var(--body-bg) 60%, var(--card-bg));
+        border-bottom: 1px solid var(--card-border);
+        padding: 12px 20px;
+        white-space: nowrap;
+    }
+    #departmentsTable td {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--card-border);
+        vertical-align: middle;
+        font-size: 0.85rem;
+    }
+    #departmentsTable tbody tr:last-child td { border-bottom: none; }
+    #departmentsTable tbody tr.dept-row {
+        transition: background-color 0.15s ease;
+    }
+    #departmentsTable tbody tr.dept-row:hover {
+        background-color: color-mix(in srgb, var(--primary-accent) 4%, transparent);
+    }
+    .dept-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        font-size: 0.8rem;
+        color: #fff;
+        background: linear-gradient(155deg, var(--primary-accent-bright), var(--primary-accent-deep));
+    }
+    .dept-desc-cell {
+        color: var(--ink-soft);
+        max-width: 420px;
+    }
+    .dept-desc-clamp {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .icon-action-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--card-border);
+        background: var(--card-bg);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink-soft);
+        transition: all 0.15s ease;
+    }
+    .icon-action-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .icon-action-btn.view-btn:hover { color: var(--primary-accent); border-color: var(--primary-accent); }
+    .icon-action-btn.delete-btn:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
+
+    .id-chip {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.72rem;
+        color: var(--ink-soft);
+        background: color-mix(in srgb, var(--body-bg) 55%, var(--card-bg));
+        border: 1px solid var(--card-border);
+        border-radius: 6px;
+        padding: 2px 8px;
+    }
+
+    /* Empty state */
+    .dept-empty {
+        padding: 56px 20px;
+        text-align: center;
+    }
+    .dept-empty i {
+        font-size: 2rem;
+        color: var(--ink-soft);
+        opacity: 0.55;
+        margin-bottom: 10px;
+        display: block;
+    }
+    .dept-empty h6 { font-weight: 600; color: var(--ink); margin-bottom: 4px; font-size: 0.9rem; }
+    .dept-empty p { color: var(--ink-soft); font-size: 0.8rem; margin: 0; }
+
+    /* Responsive: collapse table into stacked cards on small screens */
+    @media (max-width: 767.98px) {
+        #departmentsTable thead { display: none; }
+        #departmentsTable, #departmentsTable tbody, #departmentsTable tr, #departmentsTable td {
+            display: block; width: 100%;
+        }
+        #departmentsTable tbody { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+        #departmentsTable tr.dept-row {
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-xs);
+            padding: 4px 14px;
+        }
+        #departmentsTable td {
+            border-bottom: 1px dashed var(--card-border) !important;
+            padding: 10px 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        #departmentsTable td:last-child { border-bottom: none !important; }
+        #departmentsTable td::before {
+            content: attr(data-label);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--ink-soft);
+            flex-shrink: 0;
+        }
+        #departmentsTable td.dept-desc-cell {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        #departmentsTable td.dept-desc-cell .dept-desc-clamp { max-width: 100%; }
+        #departmentsTable td.dept-actions-cell { justify-content: flex-start; gap: 8px; }
+        #departmentsTable td.dept-actions-cell::before { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-title-row">
+    <div>
+        <h1>Departments</h1>
+        <p>Manage your organization's departments and their descriptions.</p>
+    </div>
+    {% if session.get('role') == 'Super Admin' %}
+    <button type="button" class="btn btn-dark rounded-pill px-4 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" style="font-size: 0.85rem;" data-bs-toggle="modal" data-bs-target="#addDepartmentModal">
+        <i class="bi bi-plus-lg"></i> Add Department
+    </button>
+    {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm">
+    <!-- Toolbar: search + entries -->
+    <div class="dept-toolbar">
+        <div class="d-flex align-items-center gap-2">
+            <h6 class="fw-semibold mb-0" style="font-size: 0.9rem;">All Departments</h6>
+            <span class="badge bg-light text-secondary border rounded-pill px-2" style="font-size: 0.7rem;" id="totalCountBadge">Total: {{ departments|length if departments else 0 }}</span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <div class="d-flex align-items-center gap-1 text-muted" style="font-size: 0.8rem;">
+                <span>Show</span>
+                <select id="entriesSelect" class="form-select form-select-sm px-2 py-1 rounded-pill" style="width: 70px;" onchange="changePageSize()">
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+
+            <div class="dept-search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="text" id="deptSearch" class="form-control form-control-sm rounded-pill" placeholder="Search departments..." onkeyup="filterDepartments()">
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table mb-0" id="departmentsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        {% if session.get('role') == 'Super Admin' %}
+                        <th class="text-end">Action</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% for dept in departments %}
+                    <tr class="dept-row">
+                        <td data-label="ID"><span class="id-chip">#{{ dept.id }}</span></td>
+                        <td data-label="Name">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="dept-avatar">{{ dept.name[0] | upper if dept.name else '?' }}</div>
+                                <span class="fw-semibold text-truncate" style="max-width: 220px;">{{ dept.name }}</span>
+                            </div>
+                        </td>
+                        <td data-label="Description" class="dept-desc-cell">
+                            <span class="dept-desc-clamp">{{ dept.description }}</span>
+                        </td>
+                        {% if session.get('role') == 'Super Admin' %}
+                        <td data-label="Action" class="text-end dept-actions-cell">
+                            <div class="d-inline-flex align-items-center gap-2">
+                                <button type="button" class="icon-action-btn view-btn" title="View details"
+                                        onclick="openDeptView('{{ dept.name | e }}', '{{ dept.description | e }}')">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <form action="{{ url_for('delete_department', dept_id=dept.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="icon-action-btn delete-btn" title="Delete department"
+                                            onclick="return confirm('Are you sure you want to delete this department?');">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr id="noDeptsRow">
+                        <td colspan="{% if session.get('role') == 'Super Admin' %}4{% else %}3{% endif %}">
+                            <div class="dept-empty">
+                                <i class="bi bi-buildings"></i>
+                                <h6>No departments yet</h6>
+                                <p>{% if session.get('role') == 'Super Admin' %}Add your first department to get started.{% else %}Departments will appear here once they're added.{% endif %}</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="card-footer bg-transparent py-3 px-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 border-top">
+        <div class="text-muted" style="font-size: 0.8rem;" id="paginationInfo">
+            Showing 0 to 0 of 0 entries
+        </div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0" id="paginationControls">
+                <!-- Dynamic Pagination Buttons -->
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- View Department Modal (client-side only, no extra route needed) -->
+<div class="modal fade" id="viewDepartmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-semibold fs-6" id="viewDeptName">Department</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <label class="form-label small fw-medium text-muted mb-1">Description</label>
+                <p class="mb-0" id="viewDeptDesc" style="font-size: 0.88rem; color: var(--ink);"></p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if session.get('role') == 'Super Admin' %}
+<!-- Add Department Modal -->
+<div class="modal fade" id="addDepartmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-3">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-semibold fs-6">Add New Department</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body py-3">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Department Name</label>
+                        <input type="text" name="name" class="form-control rounded-2 py-2" required placeholder="e.g. IT Department">
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label small fw-semibold text-muted mb-1">Description</label>
+                        <textarea name="description" class="form-control rounded-2 py-2" rows="4" required placeholder="Enter department details..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-dark rounded-pill px-3 fw-semibold">Add Department</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentPage = 1;
+    let rowsPerPage = 5; // Default entries set to 5
+    let filteredRows = [];
+
+    document.addEventListener("DOMContentLoaded", function () {
+        initPagination();
+    });
+
+    function openDeptView(name, description) {
+        document.getElementById('viewDeptName').textContent = name;
+        document.getElementById('viewDeptDesc').textContent = description;
+        var viewModal = new bootstrap.Modal(document.getElementById('viewDepartmentModal'));
+        viewModal.show();
+    }
+
+    function getRows() {
+        const query = document.getElementById('deptSearch').value.toLowerCase();
+        const allRows = Array.from(document.querySelectorAll("#tableBody tr.dept-row"));
+
+        return allRows.filter(row => {
+            const name = row.cells[1]?.textContent.toLowerCase() || '';
+            const desc = row.cells[2]?.textContent.toLowerCase() || '';
+            return name.includes(query) || desc.includes(query);
+        });
+    }
+
+    function initPagination() {
+        currentPage = 1;
+        displayTableData();
+    }
+
+    function changePageSize() {
+        rowsPerPage = parseInt(document.getElementById('entriesSelect').value);
+        currentPage = 1;
+        displayTableData();
+    }
+
+    function filterDepartments() {
+        currentPage = 1;
+        displayTableData();
+    }
+
+    function displayTableData() {
+        const allRows = Array.from(document.querySelectorAll("#tableBody tr.dept-row"));
+        filteredRows = getRows();
+
+        allRows.forEach(r => r.style.display = 'none');
+
+        const totalEntries = filteredRows.length;
+        document.getElementById('totalCountBadge').textContent = `Total: ${allRows.length}`;
+
+        const noRow = document.getElementById('noDeptsRow');
+        if (noRow) {
+            noRow.style.display = (totalEntries === 0 && allRows.length === 0) ? '' : 'none';
+        }
+
+        if (totalEntries === 0) {
+            document.getElementById('paginationInfo').textContent = `Showing 0 to 0 of 0 entries`;
+            document.getElementById('paginationControls').innerHTML = '';
+            return;
+        }
+
+        const totalPages = Math.ceil(totalEntries / rowsPerPage);
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = Math.min(start + rowsPerPage, totalEntries);
+
+        for (let i = start; i < end; i++) {
+            filteredRows[i].style.display = '';
+        }
+
+        document.getElementById('paginationInfo').textContent = `Showing ${start + 1} to ${end} of ${totalEntries} entries`;
+
+        let paginationHTML = '';
+
+        paginationHTML += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">Prev</a>
+        </li>`;
+
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                paginationHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
+                </li>`;
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+
+        paginationHTML += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">Next</a>
+        </li>`;
+
+        document.getElementById('paginationControls').innerHTML = paginationHTML;
+    }
+
+    function changePage(page) {
+        const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = Math.min(start + rowsPerPage, filteredRows.length);
+
+        Array.from(document.querySelectorAll("#tableBody tr.dept-row")).forEach(r => r.style.display = 'none');
+        for (let i = start; i < end; i++) {
+            filteredRows[i].style.display = '';
+        }
+
+        document.getElementById('paginationInfo').textContent = `Showing ${start + 1} to ${end} of ${filteredRows.length} entries`;
+        displayTableData();
+    }
+</script>
+{% endblock %}

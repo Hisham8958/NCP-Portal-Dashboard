@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Project - NCP Portal{% endblock %}
+
+{% block header_title %}Edit Project Details{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mb-3">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white p-4 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-secondary fs-6">Edit Project Details</h5>
+                <a href="{{ url_for('projects') }}" class="btn btn-outline-secondary btn-sm px-3 py-2 rounded-pill">Back to Projects</a>
+            </div>
+            <div class="card-body p-4 p-xl-5">
+                
+                <form method="POST" action="{{ url_for('edit_project', project_id=project.id) }}" id="editProjectForm" novalidate>
+                    
+                    {% if session.get('role') == 'Super Admin' %}
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Project Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control py-2" value="{{ project.name }}" required>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Description</label>
+                            <textarea name="description" class="form-control" rows="3">{{ project.description }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Select Department to Assign Team <span class="text-danger">*</span></label>
+                            <select name="department_id" id="departmentSelect" class="form-select py-2" onchange="filterEmployees(this.value)" required>
+                                <option value="">-- Choose Department --</option>
+                                {% for dept in departments %}
+                                    <option value="{{ dept.id }}" {% if selected_dept_id == dept.id %}selected{% endif %}>
+                                        {{ dept.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Team Owner / Lead <span class="text-danger">*</span></label>
+                            <select name="team_owner_id" id="teamOwnerSelect" class="form-select py-2" required>
+                                <option value="">-- Select Team Owner --</option>
+                                {% for emp in employees %}
+                                    <option value="{{ emp.id }}" {% if project.team_owner_id == emp.id %}selected{% endif %}>
+                                        {{ emp.name }} ({{ emp.designation }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                            <div class="form-text">Choose a team member from the selected department to act as the owner.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Assign Team Members</label>
+                            <div class="border rounded p-3 bg-light" id="teamMembersContainer" style="max-height: 200px; overflow-y: auto;">
+                                {% if employees %}
+                                    {% for emp in employees %}
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="employee_ids" value="{{ emp.id }}" id="emp_{{ emp.id }}"
+                                                {% if emp.id in assigned_employee_ids %}checked{% endif %}>
+                                            <label class="form-check-label" for="emp_{{ emp.id }}">
+                                                {{ emp.name }} <span class="text-muted small">({{ emp.designation }})</span>
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-muted small mb-0">Select a department above to view and assign employees.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="mb-3">
+                            <label class="form-label fw-medium text-muted">Project Name</label>
+                            <div class="form-control bg-light text-dark py-2 border-0 fw-semibold">{{ project.name }}</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium text-muted">Description</label>
+                            <div class="form-control bg-light text-dark py-2 border-0" style="min-height: 80px;">{{ project.description if project.description else 'No description provided.' }}</div>
+                        </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" id="startDate" class="form-control py-2" value="{{ project.start_date if project.start_date else '' }}" required>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">End Date <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="endDate" class="form-control py-2" value="{{ project.end_date if project.end_date else '' }}" required>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Status</label>
+                            <select name="status" id="projectStatus" class="form-select py-2" required>
+                                <option value="Initiated" {% if project.status == 'Initiated' %}selected{% endif %}>Initiated</option>
+                                <option value="In Progress" {% if project.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                <option value="Completed" {% if project.status == 'Completed' %}selected{% endif %}>Completed</option>
+                            </select>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Progress (%)</label>
+                            <input type="number" name="progress" id="projectProgress" class="form-control py-2" min="0" max="100" value="{{ project.progress }}" required oninput="validateProgress(this)">
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                            <div id="progressError" class="text-danger small mt-1" style="display: none; font-size: 0.7rem;">Progress must be between 0 and 100!</div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden Inputs to preserve department, team owner, and team members for non-Super Admins -->
+                    {% if session.get('role') != 'Super Admin' %}
+                        <input type="hidden" name="department_id" value="{{ selected_dept_id }}">
+                        <input type="hidden" name="team_owner_id" value="{{ project.team_owner_id }}">
+                        {% for emp_id in assigned_employee_ids %}
+                            <input type="hidden" name="employee_ids" value="{{ emp_id }}">
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <a href="{{ url_for('projects') }}" class="btn btn-outline-secondary px-4 py-2 rounded-pill">Cancel</a>
+                        <button type="submit" class="btn btn-dark fw-semibold px-4 py-2 rounded-pill">Update Project</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Progress validation function (prevents values > 100 or < 0)
+    function validateProgress(input) {
+        const errorDiv = document.getElementById('progressError');
+        let val = parseInt(input.value);
+        if (val > 100) {
+            input.value = 100;
+            if(errorDiv) errorDiv.style.display = 'block';
+        } else if (val < 0) {
+            input.value = 0;
+            if(errorDiv) errorDiv.style.display = 'block';
+        } else {
+            if(errorDiv) errorDiv.style.display = 'none';
+        }
+    }
+
+    function filterEmployees(deptId) {
+        const teamOwnerSelect = document.getElementById('teamOwnerSelect');
+        const employeeContainer = document.getElementById('teamMembersContainer');
+
+        if (!deptId) {
+            if (teamOwnerSelect) teamOwnerSelect.innerHTML = '<option value="">-- Select Team Owner --</option>';
+            if (employeeContainer) employeeContainer.innerHTML = '<p class="text-muted small mb-0">Select a department above to view and assign employees.</p>';
+            return;
+        }
+
+        fetch(`/get_employees/${deptId}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                if (teamOwnerSelect) {
+                    teamOwnerSelect.innerHTML = '<option value="">-- Select Team Owner --</option>';
+                    data.forEach(emp => {
+                        teamOwnerSelect.innerHTML += `<option value="${emp.id}">${emp.name} (${emp.designation})</option>`;
+                    });
+                }
+
+                if (employeeContainer) {
+                    employeeContainer.innerHTML = '';
+                    if (data.length > 0) {
+                        data.forEach(emp => {
+                            employeeContainer.innerHTML += `
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="employee_ids" value="${emp.id}" id="emp_${emp.id}">
+                                    <label class="form-check-label" for="emp_${emp.id}">
+                                        ${emp.name} <span class="text-muted small">(${emp.designation})</span>
+                                    </label>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        employeeContainer.innerHTML = '<p class="text-muted small mb-0">No employees found in this department.</p>';
+                    }
+                }
+            })
+            .catch(error => console.error('Error fetching employees:', error));
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const editProjectForm = document.getElementById('editProjectForm');
+        const statusSelect = document.getElementById('projectStatus');
+        const progressInput = document.getElementById('projectProgress');
+        const teamOwnerSelect = document.getElementById('teamOwnerSelect');
+
+        if (startDateInput && endDateInput) {
+            startDateInput.addEventListener('change', function() {
+                const selectedStartDate = this.value;
+                endDateInput.min = selectedStartDate;
+                if (endDateInput.value && endDateInput.value < selectedStartDate) {
+                    endDateInput.value = '';
+                }
+            });
+            if (startDateInput.value) {
+                endDateInput.min = startDateInput.value;
+            }
+        }
+
+        if (editProjectForm) {
+            editProjectForm.addEventListener('submit', function(event) {
+                // Ensure readonly progress field value is sent
+                if (progressInput) {
+                    progressInput.removeAttribute('readonly');
+                }
+
+                const requiredFields = editProjectForm.querySelectorAll("[required]");
+                let firstInvalidField = null;
+
+                requiredFields.forEach(field => {
+                    field.classList.remove('is-invalid');
+                });
+
+                for (let field of requiredFields) {
+                    if (field.offsetParent === null) continue;
+                    if (!field.value || field.value.trim() === "") {
+                        firstInvalidField = field;
+                        break;
+                    }
+                }
+
+                if (firstInvalidField) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    firstInvalidField.classList.add('is-invalid');
+                    firstInvalidField.focus();
+                }
+            });
+        }
+
+        document.querySelectorAll("[required]").forEach(field => {
+            field.addEventListener("input", function() {
+                if (this.value.trim() !== "") {
+                    this.classList.remove('is-invalid');
+                }
+            });
+            field.addEventListener("change", function() {
+                if (this.value !== "") {
+                    this.classList.remove('is-invalid');
+                }
+            });
+        });
+
+        function updateProgressField() {
+            if (!statusSelect || !progressInput) return;
+            const errorDiv = document.getElementById('progressError');
+            if (statusSelect.value === 'Initiated') {
+                progressInput.value = 0;
+                progressInput.setAttribute('readonly', true);
+                progressInput.style.backgroundColor = '#e9ecef';
+                if(errorDiv) errorDiv.style.display = 'none';
+            } else if (statusSelect.value === 'Completed') {
+                progressInput.value = 100;
+                progressInput.setAttribute('readonly', true);
+                progressInput.style.backgroundColor = '#e9ecef';
+                if(errorDiv) errorDiv.style.display = 'none';
+            } else {
+                progressInput.removeAttribute('readonly');
+                progressInput.style.backgroundColor = '#fff';
+            }
+        }
+
+        if (statusSelect && progressInput) {
+            updateProgressField();
+            statusSelect.addEventListener('change', updateProgressField);
+        }
+
+        if (teamOwnerSelect) {
+            let previousOwnerId = teamOwnerSelect.value;
+
+            teamOwnerSelect.addEventListener('change', function() {
+                const newOwnerId = this.value;
+                
+                document.querySelectorAll('input[name="employee_ids"]').forEach(cb => {
+                    if (cb.value === previousOwnerId && previousOwnerId !== "") {
+                        cb.checked = false;
+                    }
+                    if (cb.value === newOwnerId) {
+                        cb.checked = true;
+                    }
+                });
+
+                previousOwnerId = newOwnerId;
+            });
+        }
+    });
+</script>
+{% endblock %}

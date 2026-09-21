@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Task - NCP Portal{% endblock %}
+
+{% block header_title %}Edit Task{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 rounded-3">
+            <div class="card-header bg-body p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="fw-semibold mb-0 text-dark fs-6">Edit Task: {{ task.name }}</h5>
+                {% if task.task_code %}
+                    <span class="badge bg-light text-dark border font-monospace px-2 py-1" style="font-size: 0.75rem;">
+                        Code: {{ task.task_code }}
+                    </span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('update_task', task_id=task.id) }}" method="POST" enctype="multipart/form-data" id="editTaskForm" onsubmit="return validateTaskForm()">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-muted">Task Code / ID</label>
+                        <input type="text" name="task_code" class="form-control form-control-sm rounded-2 font-monospace bg-light" value="{{ task.task_code or '' }}" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-muted">Task Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control form-control-sm rounded-2" value="{{ task.name }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-muted">Detailed Description</label>
+                        <textarea class="form-control form-control-sm rounded-2" name="description" rows="3" placeholder="Enter detailed task description...">{{ task.description if task.description else '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-muted">Select Project <span class="text-danger">*</span></label>
+                        <select name="project_id" id="projectSelect" class="form-select form-select-sm rounded-2" required onchange="onProjectChange()">
+                            <option value="" disabled>-- Choose Project --</option>
+                            {% for p in projects %}
+                                <option value="{{ p.id }}" data-start="{{ p.start_date.strftime('%Y-%m-%d') if p.start_date else '' }}" data-end="{{ p.end_date.strftime('%Y-%m-%d') if p.end_date else '' }}" data-owner-id="{{ p.team_owner_id if p.team_owner_id else (p.lead_id if p.lead_id else '') }}" {% if task.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Assigned Members Section -->
+                    {% if session.get('role') == 'Super Admin' %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-muted">Assign Team Members (Project Assigned Only) <span class="text-danger">*</span></label>
+                        <div id="projectMembersContainer" class="border rounded-2 p-3 bg-light" style="max-height: 160px; overflow-y: auto;">
+                            <p class="text-muted small mb-0">Select a project to load assigned members.</p>
+                        </div>
+                        <div id="checkboxError" class="text-danger small mt-1" style="display: none; font-size: 0.7rem;">Please select at least one team member.</div>
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <label class="form-label small fw-medium text-muted">Assigned Member <span class="text-danger">*</span></label>
+                        <div class="border rounded-2 p-3 bg-light">
+                            {% if team_members %}
+                                {% for member in team_members %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="assigned_to" value="{{ member.id }}" id="member_{{ member.id }}" checked onclick="return false;">
+                                    <label class="form-check-label small text-dark fw-semibold" for="member_{{ member.id }}">
+                                        {{ member.name }} <span class="text-muted fw-normal">({{ member.designation or 'Member' }}) - Assigned to You</span>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-danger small mb-0">You are not mapped as a team member record.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-medium text-muted">Status <span class="text-danger">*</span></label>
+                            <select name="status" id="statusSelect" class="form-select form-select-sm rounded-2" required onchange="handleStatusChange()">
+                                <option value="Initiated" {% if task.status == 'Initiated' %}selected{% endif %}>Initiated</option>
+                                <option value="In Progress" {% if task.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                <option value="Completed" {% if task.status == 'Completed' %}selected{% endif %}>Completed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-medium text-muted">Progress (%) <span class="text-danger">*</span></label>
+                            <input type="number" name="progress" id="progressInput" class="form-control form-control-sm rounded-2" min="0" max="100" value="{{ task.progress if task.progress is not none else 0 }}" {% if task.status != 'In Progress' %}readonly{% endif %} required oninput="validateProgress(this)">
+                            <div id="progressError" class="text-danger small mt-1" style="display: none; font-size: 0.7rem;">Progress must be between 0 and 100!</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-medium text-muted">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" id="startDate" class="form-control form-control-sm rounded-2" value="{{ task.start_date.strftime('%Y-%m-%d') if task.start_date else '' }}" onchange="onStartDateChange()" required>
+                            <div id="projectDateError" class="text-danger small mt-1" style="display: none; font-size: 0.7rem;">Start date cannot be before project start date!</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-medium text-muted">End Date <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="endDate" class="form-control form-control-sm rounded-2" value="{{ task.end_date.strftime('%Y-%m-%d') if task.end_date else '' }}" required>
+                            <div id="dateError" class="text-danger small mt-1" style="display: none; font-size: 0.7rem;">End date must be on or after start date!</div>
+                            <div id="projectEndDateError" class="text-danger small mt-1" style="display: none; font-size: 0.7rem;">End date cannot be after project end date!</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-medium text-muted">Update Attachment File (Optional)</label>
+                        <input type="file" name="attachment" class="form-control form-control-sm rounded-2">
+                        {% if task.attachment %}
+                            <div class="form-text small mt-1 text-muted" style="font-size: 0.7rem;">
+                                Current file: <a href="{{ url_for('static', filename='uploads/' + task.attachment) }}" target="_blank" class="text-decoration-underline">{{ task.attachment.split('_', 2)[-1] }}</a>
+                                <a href="{{ url_for('static', filename='uploads/' + task.attachment) }}" download class="ms-2 text-success"><i class="bi bi-download"></i> Download</a>
+                            </div>
+                        {% else %}
+                            <div class="form-text small mt-1 text-muted" style="font-size: 0.7rem;">No file currently attached.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{{ url_for('tasks_hub') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-4">Cancel</a>
+                        <button type="submit" class="btn btn-dark btn-sm rounded-pill px-4">Update Task</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const userRole = "{{ session.get('role') }}";
+    const preSelectedMemberIds = JSON.parse('{{ assigned_member_ids | tojson | safe }}');
+
+    document.addEventListener("DOMContentLoaded", function() {
+        updateDateRestrictions();
+        const projectSelect = document.getElementById('projectSelect');
+        if (userRole === 'Super Admin' && projectSelect && projectSelect.value) {
+            fetchProjectMembers(projectSelect.value, preSelectedMemberIds);
+        }
+    });
+
+    function validateProgress(input) {
+        const errorDiv = document.getElementById('progressError');
+        let val = parseInt(input.value);
+        if (val > 100) {
+            input.value = 100;
+            if(errorDiv) errorDiv.style.display = 'block';
+        } else if (val < 0) {
+            input.value = 0;
+            if(errorDiv) errorDiv.style.display = 'block';
+        } else {
+            if(errorDiv) errorDiv.style.display = 'none';
+        }
+    }
+
+    function onProjectChange() {
+        updateDateRestrictions();
+        if (userRole === 'Super Admin') {
+            const projectSelect = document.getElementById('projectSelect');
+            const projectId = projectSelect.value;
+            if (projectId) {
+                fetchProjectMembers(projectId, []);
+            } else {
+                document.getElementById('projectMembersContainer').innerHTML = '<p class="text-muted small mb-0">Select a project to load assigned members.</p>';
+            }
+        }
+    }
+
+    function fetchProjectMembers(projectId, selectedIds) {
+        const select = document.getElementById('projectSelect');
+        const selectedOption = select.options[select.selectedIndex];
+        const projectOwnerId = selectedOption ? selectedOption.getAttribute('data-owner-id') : '';
+
+        const container = document.getElementById('projectMembersContainer');
+        container.innerHTML = '<p class="text-muted small mb-0">Loading members...</p>';
+
+        fetch(`/get_project_members/${projectId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    let html = '<div class="d-flex flex-column gap-2">';
+                    data.forEach(member => {
+                        const isChecked = selectedIds.includes(member.id) ? 'checked' : '';
+                        const designationText = member.designation ? ` (${member.designation})` : '';
+                        const isLead = String(member.id) === String(projectOwnerId);
+                        const leadBadge = isLead ? ' <span class="badge bg-danger text-white ms-1" style="font-size: 0.65rem;">(Lead)</span>' : '';
+                        
+                        html += `
+                            <div class="form-check d-flex align-items-center justify-content-between border-bottom pb-1 mb-1">
+                                <div>
+                                    <input class="form-check-input member-checkbox me-2" type="checkbox" name="assigned_to" value="${member.id}" id="member_${member.id}" ${isChecked}>
+                                    <label class="form-check-label small text-dark" for="member_${member.id}">
+                                        <strong>${member.name || member.username}</strong>${designationText}${leadBadge}
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="text-danger small mb-0">No team members are assigned to this project yet.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching project members:', error);
+                container.innerHTML = '<p class="text-danger small mb-0">Failed to load project members.</p>';
+            });
+    }
+
+    function updateDateRestrictions() {
+        const select = document.getElementById('projectSelect');
+        if (!select) return;
+        const selectedOption = select.options[select.selectedIndex];
+        const projectStartDate = selectedOption ? selectedOption.getAttribute('data-start') : '';
+        const projectEndDate = selectedOption ? selectedOption.getAttribute('data-end') : '';
+        
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+
+        if (projectStartDate) {
+            startDateInput.setAttribute('min', projectStartDate);
+        } else {
+            startDateInput.removeAttribute('min');
+        }
+
+        if (projectEndDate) {
+            endDateInput.setAttribute('max', projectEndDate);
+        } else {
+            endDateInput.removeAttribute('max');
+        }
+
+        onStartDateChange();
+    }
+
+    function onStartDateChange() {
+        const startDateVal = document.getElementById('startDate').value;
+        const endDateInput = document.getElementById('endDate');
+
+        if (startDateVal) {
+            endDateInput.setAttribute('min', startDateVal);
+            if (endDateInput.value && endDateInput.value < startDateVal) {
+                endDateInput.value = '';
+            }
+        }
+    }
+
+    function handleStatusChange() {
+        const statusVal = document.getElementById('statusSelect').value;
+        const progressInput = document.getElementById('progressInput');
+        const errorDiv = document.getElementById('progressError');
+
+        if (statusVal === 'Initiated') {
+            progressInput.value = 0;
+            progressInput.setAttribute('readonly', true);
+            progressInput.style.backgroundColor = '#e9ecef';
+            if(errorDiv) errorDiv.style.display = 'none';
+        } else if (statusVal === 'Completed') {
+            progressInput.value = 100;
+            progressInput.setAttribute('readonly', true);
+            progressInput.style.backgroundColor = '#e9ecef';
+            if(errorDiv) errorDiv.style.display = 'none';
+        } else if (statusVal === 'In Progress') {
+            progressInput.removeAttribute('readonly');
+            progressInput.style.backgroundColor = '#fff';
+        }
+    }
+
+    function validateTaskForm() {
+        const progressInput = document.getElementById('progressInput');
+        if (progressInput) {
+            progressInput.removeAttribute('readonly');
+        }
+
+        const select = document.getElementById('projectSelect');
+        const selectedOption = select.options[select.selectedIndex];
+        const projectStartDate = selectedOption ? selectedOption.getAttribute('data-start') : '';
+        const projectEndDate = selectedOption ? selectedOption.getAttribute('data-end') : '';
+
+        const startDateVal = document.getElementById('startDate').value;
+        const endDateVal = document.getElementById('endDate').value;
+
+        const projDateError = document.getElementById('projectDateError');
+        const errorDiv = document.getElementById('dateError');
+        const projEndDateError = document.getElementById('projectEndDateError');
+        const checkboxError = document.getElementById('checkboxError');
+
+        let isValid = true;
+
+        if (projectStartDate && startDateVal < projectStartDate) {
+            projDateError.style.display = 'block';
+            isValid = false;
+        } else {
+            projDateError.style.display = 'none';
+        }
+
+        if (startDateVal && endDateVal && startDateVal > endDateVal) {
+            errorDiv.style.display = 'block';
+            isValid = false;
+        } else {
+            errorDiv.style.display = 'none';
+        }
+
+        if (projectEndDate && endDateVal && endDateVal > projectEndDate) {
+            projEndDateError.style.display = 'block';
+            isValid = false;
+        } else {
+            projEndDateError.style.display = 'none';
+        }
+
+        if (userRole === 'Super Admin') {
+            const checkboxes = document.querySelectorAll('.member-checkbox');
+            let checkedCount = 0;
+            checkboxes.forEach(cb => {
+                if (cb.checked) checkedCount++;
+            });
+
+            if (checkboxes.length > 0 && checkedCount === 0) {
+                if (checkboxError) checkboxError.style.display = 'block';
+                isValid = false;
+            } else {
+                if (checkboxError) checkboxError.style.display = 'none';
+            }
+        }
+
+        return isValid;
+    }
+</script>
+{% endblock %}

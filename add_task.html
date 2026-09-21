@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Task - NCP Portal{% endblock %}
+
+{% block header_title %}Add New Task{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mb-3">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white p-4 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-secondary fs-6">Create New Task</h5>
+                <a href="{{ url_for('tasks_hub') }}" class="btn btn-outline-secondary btn-sm px-3 py-2 rounded-pill">Back to Tasks Hub</a>
+            </div>
+            <div class="card-body p-4 p-xl-5">
+                <form action="{{ url_for('tasks_hub') }}" method="POST" enctype="multipart/form-data" id="taskForm" novalidate>
+                    
+                    <!-- Unique Task ID Field (Auto-generated 6 digits) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Task ID / Code</label>
+                        <input type="texta" id="uniqueTaskId" name="task_code" class="form-control py-2 bg-light text-muted fw-bold" readonly required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Task Title <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control py-2" placeholder="Enter task title..." required>
+                        <div class="invalid-feedback">Please fill out this field.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Detailed Description</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Enter detailed task description..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Select Project <span class="text-danger">*</span></label>
+                        <select name="project_id" id="projectSelect" class="form-select py-2" required onchange="fetchProjectMembers()">
+                            <option value="" disabled selected>-- Choose Project --</option>
+                            {% for p in projects %}
+                                <option value="{{ p.id }}" data-start="{{ p.start_date.strftime('%Y-%m-%d') if p.start_date else '' }}" data-end="{{ p.end_date.strftime('%Y-%m-%d') if p.end_date else '' }}" data-owner-id="{{ p.team_owner_id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">Please fill out this field.</div>
+                    </div>
+
+                    <!-- Assign Team Members Section -->
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">
+                            {% if session.get('role') == 'Super Admin' %}
+                                Assign Team Members <span class="text-danger">*</span>
+                            {% else %}
+                                Assigned To <span class="text-danger">*</span>
+                            {% endif %}
+                        </label>
+                        <div id="teamMembersContainer" class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                            <span class="text-muted small">-- First select a project to view assigned members --</span>
+                        </div>
+                        <div id="checkboxError" class="text-danger small mt-1" style="display: none;">Please select at least one team member.</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" id="startDate" class="form-control py-2" onchange="onStartDateChange()" required>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                            <div id="projectDateError" class="text-danger small mt-1" style="display: none;">Start date cannot be before project start date!</div>
+                            <div id="startDateError" class="text-danger small mt-1" style="display: none;">Start date cannot be after end date!</div>
+                            <div id="projectStartDateLimitError" class="text-danger small mt-1" style="display: none;">Start date cannot be after project end date!</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">End Date <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="endDate" class="form-control py-2" disabled required>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                            <div id="dateError" class="text-danger small mt-1" style="display: none;">End date must be on or after start date!</div>
+                            <div id="projectEndDateError" class="text-danger small mt-1" style="display: none;">End date cannot be after project end date!</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Status <span class="text-danger">*</span></label>
+                            <select name="status" id="statusSelect" class="form-select py-2" required onchange="handleStatusChange()">
+                                <option value="Initiated" selected>Initiated</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Progress (%) <span class="text-danger">*</span></label>
+                            <input type="number" name="progress" id="progressInput" class="form-control py-2" min="0" max="100" value="0" readonly required oninput="validateProgress(this)">
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                            <div id="progressError" class="text-danger small mt-1" style="display: none;">Progress must be between 0 and 100!</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-medium">Attachment File (Optional)</label>
+                        <input type="file" name="attachment" class="form-control py-2">
+                        <div class="form-text">Allowed types: pdf, png, jpg, jpeg, doc, docx, xls, xlsx, txt</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <a href="{{ url_for('tasks_hub') }}" class="btn btn-outline-secondary px-4 py-2 rounded-pill">Cancel</a>
+                        <button type="submit" class="btn btn-dark fw-semibold px-4 py-2 rounded-pill">Save Task</button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const userRole = "{{ session.get('role') }}";
+    const loggedInMemberId = "{{ session.get('team_member_id') or session.get('user_id') }}"; 
+    const loggedInUserName = "{{ session.get('user', 'User') }}";
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const randomFiveOrSixDigit = Math.floor(100000 + Math.random() * 900000); 
+        const taskIdField = document.getElementById('uniqueTaskId');
+        if (taskIdField) {
+            taskIdField.value = randomFiveOrSixDigit;
+        }
+    });
+
+    function validateProgress(input) {
+        const errorDiv = document.getElementById('progressError');
+        let val = parseInt(input.value);
+        if (val > 100) {
+            input.value = 100;
+            if(errorDiv) errorDiv.style.display = 'block';
+        } else if (val < 0) {
+            input.value = 0;
+            if(errorDiv) errorDiv.style.display = 'block';
+        } else {
+            if(errorDiv) errorDiv.style.display = 'none';
+        }
+    }
+
+    function fetchProjectMembers() {
+        const select = document.getElementById('projectSelect');
+        if (!select) return;
+        
+        const selectedOption = select.options[select.selectedIndex];
+        const projectId = select.value;
+        const projectStartDate = selectedOption.getAttribute('data-start');
+        const projectEndDate = selectedOption.getAttribute('data-end');
+        const projectOwnerId = selectedOption.getAttribute('data-owner-id');
+        
+        const startDateInput = document.getElementById('startDate');
+        if (projectStartDate) {
+            startDateInput.setAttribute('min', projectStartDate);
+        } else {
+            startDateInput.removeAttribute('min');
+        }
+        
+        // Start date ka max attribute hata diya hai taake calendar lock na ho, validation submit par check hogi
+        startDateInput.removeAttribute('max');
+        
+        const endDateInput = document.getElementById('endDate');
+        if (projectEndDate) {
+            endDateInput.setAttribute('max', projectEndDate);
+        } else {
+            endDateInput.removeAttribute('max');
+        }
+
+        startDateInput.value = '';
+        endDateInput.value = '';
+        endDateInput.setAttribute('disabled', 'true');
+
+        const container = document.getElementById('teamMembersContainer');
+        if (container) {
+            container.innerHTML = '<span class="text-muted small">Loading members...</span>';
+
+            fetch(`/get_project_members/${projectId}`)
+                .then(response => response.json())
+                .then(data => {
+                    container.innerHTML = '';
+                    
+                    if (userRole === 'Super Admin') {
+                        if (data && data.length > 0) {
+                            let html = '<div class="d-flex flex-column gap-2">';
+                            data.forEach(member => {
+                                const designationText = member.designation ? ` (${member.designation})` : '';
+                                const isLead = String(member.id) === String(projectOwnerId);
+                                const leadBadge = isLead ? ' <span class="badge bg-danger text-white ms-1" style="font-size: 0.65rem;">(Lead)</span>' : '';
+                                
+                                html += `
+                                    <div class="form-check">
+                                        <input class="form-check-input member-checkbox" type="checkbox" name="assigned_to" value="${member.id}" id="member_${member.id}">
+                                        <label class="form-check-label fw-normal text-dark" for="member_${member.id}">
+                                            <strong>${member.name || member.username}</strong>${designationText}${leadBadge}
+                                        </label>
+                                    </div>
+                                `;
+                            });
+                            html += '</div>';
+                            container.innerHTML = html;
+                        } else {
+                            container.innerHTML = '<span class="text-danger small">-- No team members are assigned to this project yet --</span>';
+                        }
+                    } else {
+                        let memberId = loggedInMemberId;
+                        let memberName = loggedInUserName;
+                        let designationText = "";
+                        let isLead = false;
+
+                        if (data && data.length > 0) {
+                            const matched = data.find(m => String(m.id) === String(loggedInMemberId)) || data[0];
+                            memberId = matched.id;
+                            memberName = matched.name || matched.username || memberName;
+                            designationText = matched.designation ? ` (${matched.designation})` : '';
+                            isLead = String(matched.id) === String(projectOwnerId);
+                        }
+
+                        const leadBadge = isLead ? ' <span class="badge bg-danger text-white ms-1" style="font-size: 0.65rem;">(Lead)</span>' : '';
+
+                        let html = `
+                            <div class="d-flex flex-column gap-2">
+                                <div class="form-check">
+                                    <input class="form-check-input member-checkbox" type="checkbox" name="assigned_to" value="${memberId}" id="member_${memberId}" checked onclick="return false;">
+                                    <label class="form-check-label fw-normal text-dark" for="member_${memberId}">
+                                        <strong>${memberName}</strong>${designationText}${leadBadge} <span class="text-muted small fw-bold text-primary">(Assigned to You)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                        container.innerHTML = html;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching members:', error);
+                    if (userRole !== 'Super Admin') {
+                        const isLead = String(loggedInMemberId) === String(projectOwnerId);
+                        const leadBadge = isLead ? ' <span class="badge bg-danger text-white ms-1" style="font-size: 0.65rem;">(Lead)</span>' : '';
+
+                        container.innerHTML = `
+                            <div class="d-flex flex-column gap-2">
+                                <div class="form-check">
+                                    <input class="form-check-input member-checkbox" type="checkbox" name="assigned_to" value="${loggedInMemberId}" id="member_${loggedInMemberId}" checked onclick="return false;">
+                                    <label class="form-check-label fw-normal text-dark" for="member_${loggedInMemberId}">
+                                        <strong>${loggedInUserName}</strong>${leadBadge} <span class="text-muted small fw-bold text-primary">(Assigned to You)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        container.innerHTML = '<span class="text-danger small">-- Error loading members --</span>';
+                    }
+                });
+        }
+    }
+
+    function onStartDateChange() {
+        const startDateVal = document.getElementById('startDate').value;
+        const endDateInput = document.getElementById('endDate');
+
+        if (startDateVal) {
+            endDateInput.removeAttribute('disabled');
+            endDateInput.setAttribute('min', startDateVal);
+            
+            if (endDateInput.value && endDateInput.value < startDateVal) {
+                endDateInput.value = '';
+            }
+        } else {
+            endDateInput.value = '';
+            endDateInput.setAttribute('disabled', 'true');
+        }
+    }
+
+    function handleStatusChange() {
+        const statusVal = document.getElementById('statusSelect').value;
+        const progressInput = document.getElementById('progressInput');
+        const errorDiv = document.getElementById('progressError');
+
+        if (statusVal === 'Initiated') {
+            progressInput.value = 0;
+            progressInput.setAttribute('readonly', true);
+            progressInput.style.backgroundColor = '#e9ecef';
+            if(errorDiv) errorDiv.style.display = 'none';
+        } else if (statusVal === 'Completed') {
+            progressInput.value = 100;
+            progressInput.setAttribute('readonly', true);
+            progressInput.style.backgroundColor = '#e9ecef';
+            if(errorDiv) errorDiv.style.display = 'none';
+        } else if (statusVal === 'In Progress') {
+            progressInput.removeAttribute('readonly');
+            progressInput.style.backgroundColor = '#fff';
+        }
+    }
+
+    document.getElementById('taskForm').addEventListener('submit', function(event) {
+        const progressInput = document.getElementById('progressInput');
+        if (progressInput) {
+            progressInput.removeAttribute('readonly');
+        }
+
+        const requiredFields = document.querySelectorAll("[required]");
+        let firstInvalidField = null;
+
+        requiredFields.forEach(field => {
+            field.classList.remove('is-invalid');
+        });
+
+        for (let field of requiredFields) {
+            if (field.offsetParent === null) continue;
+            
+            if (!field.value || field.value.trim() === "") {
+                firstInvalidField = field;
+                break;
+            }
+        }
+
+        const checkboxes = document.querySelectorAll('.member-checkbox');
+        let checkedCount = 0;
+        checkboxes.forEach(cb => {
+            if (cb.checked) checkedCount++;
+        });
+
+        const checkboxError = document.getElementById('checkboxError');
+        let isCheckboxValid = true;
+        if (checkboxes.length > 0 && checkedCount === 0) {
+            isCheckboxValid = false;
+            if (checkboxError) checkboxError.style.display = 'block';
+        } else {
+            if (checkboxError) checkboxError.style.display = 'none';
+        }
+
+        const select = document.getElementById('projectSelect');
+        const selectedOption = select.options[select.selectedIndex];
+        const projectStartDate = selectedOption ? selectedOption.getAttribute('data-start') : '';
+        const projectEndDate = selectedOption ? selectedOption.getAttribute('data-end') : '';
+        
+        const startDateVal = document.getElementById('startDate').value;
+        const endDateVal = document.getElementById('endDate').value;
+        
+        let isValid = true;
+        const projDateError = document.getElementById('projectDateError');
+        const startDateError = document.getElementById('startDateError');
+        const projStartLimitError = document.getElementById('projectStartDateLimitError');
+        const errorDiv = document.getElementById('dateError');
+        const projEndDateError = document.getElementById('projectEndDateError');
+
+        // Check 1: Start date project start date se pehle ki na ho
+        if (projectStartDate && startDateVal < projectStartDate) {
+            projDateError.style.display = 'block';
+            isValid = false;
+        } else {
+            projDateError.style.display = 'none';
+        }
+
+        // Check 2: Start date project end date se barri na ho
+        if (projectEndDate && startDateVal > projectEndDate) {
+            projStartLimitError.style.display = 'block';
+            isValid = false;
+        } else {
+            projStartLimitError.style.display = 'none';
+        }
+
+        // Check 3: Start date end date se barri na ho
+        if (startDateVal && endDateVal && startDateVal > endDateVal) {
+            startDateError.style.display = 'block';
+            isValid = false;
+        } else {
+            startDateError.style.display = 'none';
+        }
+
+        // Check 4: End date start date se pehle ki na ho
+        if (endDateVal < startDateVal) {
+            errorDiv.style.display = 'block';
+            isValid = false;
+        } else {
+            errorDiv.style.display = 'none';
+        }
+
+        // Check 5: End date project end date se barri na ho
+        if (projectEndDate && endDateVal && endDateVal > projectEndDate) {
+            projEndDateError.style.display = 'block';
+            isValid = false;
+        } else {
+            projEndDateError.style.display = 'none';
+        }
+
+        if (firstInvalidField || !isValid || !isCheckboxValid) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (firstInvalidField) {
+                firstInvalidField.classList.add('is-invalid');
+                firstInvalidField.focus();
+            }
+        }
+    });
+
+    document.querySelectorAll("[required]").forEach(field => {
+        field.addEventListener("input", function() {
+            if (this.value.trim() !== "") {
+                this.classList.remove('is-invalid');
+            }
+        });
+        field.addEventListener("change", function() {
+            if (this.value !== "") {
+                this.classList.remove('is-invalid');
+            }
+        });
+    });
+</script>
+{% endblock %}

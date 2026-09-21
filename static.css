@@ -1,0 +1,231 @@
+/* --- Base Styles --- */
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+    font-family: 'Inter', sans-serif; 
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', 'Inter', sans-serif;
+}
+
+body { 
+    background-color: #f4f5f8; 
+    color: #0f172a; 
+    height: 100vh; 
+    overflow: hidden; 
+    transition: background 0.3s ease, color 0.3s ease; 
+}
+
+/* Layout */
+.grid-container { 
+    display: grid; 
+    grid-template-columns: 240px 1fr; 
+    height: 100vh; 
+}
+
+.main-container { 
+    padding: 24px; 
+    height: 100vh; 
+    overflow-y: auto; 
+}
+
+/* Sidebar & Cards */
+.sidebar { 
+    background: #ffffff; 
+    border-right: 1px solid rgba(15, 23, 42, 0.08); 
+    padding: 24px; 
+    display: flex; 
+    flex-direction: column; 
+    transition: background 0.3s ease, color 0.3s ease; 
+}
+
+.sidebar-brand { 
+    font-weight: 700; 
+    font-family: 'Sora', sans-serif;
+    color: #0f766e; 
+    margin-bottom: 30px; 
+    font-size: 1.1rem;
+}
+
+.sidebar-list-item {
+    margin-bottom: 6px;
+}
+
+.sidebar-list-item a { 
+    text-decoration: none; 
+    color: #475569; 
+    padding: 10px 14px; 
+    display: block; 
+    border-radius: 10px; 
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.sidebar-list-item a:hover { 
+    background: rgba(20, 184, 166, 0.1); 
+    color: #0f766e; 
+}
+
+.theme-btn { 
+    padding: 11px; 
+    background: #0f172a; 
+    color: white; 
+    border: none; 
+    border-radius: 12px; 
+    cursor: pointer; 
+    margin-top: auto; 
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.theme-btn:hover {
+    background: #1e293b;
+}
+
+.card { 
+    background: white; 
+    padding: 24px; 
+    border-radius: 16px; 
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05); 
+    transition: background 0.3s ease, color 0.3s ease, border 0.3s ease; 
+}
+
+.charts-card { 
+    background: white; 
+    padding: 24px; 
+    border-radius: 16px; 
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05); 
+    height: 280px; 
+    transition: background 0.3s ease, color 0.3s ease, border 0.3s ease; 
+}
+
+canvas { 
+    width: 100% !important; 
+    height: 100% !important; 
+}
+
+/* --- LIGHT MODE (Explicit Override) --- */
+body.light-mode { 
+    background-color: #f4f5f8 !important; 
+    color: #0f172a !important; 
+}
+
+body.light-mode .sidebar { 
+    background-color: #ffffff !important; 
+    border-right: 1px solid rgba(15, 23, 42, 0.08) !important; 
+    color: #0f172a !important; 
+}
+
+body.light-mode .sidebar-list-item a { 
+    color: #475569 !important; 
+}
+
+body.light-mode .card, 
+body.light-mode .charts-card { 
+    background-color: #ffffff !important; 
+    color: #0f172a !important; 
+    border: 1px solid rgba(15, 23, 42, 0.08) !important; 
+}
+
+body.light-mode h2, 
+body.light-mode h3, 
+body.light-mode p { 
+    color: #0f172a !important; 
+}
+
+/* --- DARK MODE (Universal) --- */
+.dark-mode { 
+    background-color: #0b0f19 !important; 
+    color: #f8fafc !important; 
+}
+
+.dark-mode .sidebar { 
+    background-color: #111827 !important; 
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important; 
+}
+
+.dark-mode .sidebar-brand {
+    color: #14b8a6 !important;
+}
+
+.dark-mode .sidebar-list-item a { 
+    color: #94a3b8 !important; 
+}
+
+.dark-mode .sidebar-list-item a:hover { 
+    background: rgba(20, 184, 166, 0.15) !important; 
+    color: #14b8a6 !important; 
+}
+
+.dark-mode .theme-btn {
+    background: #14b8a6;
+    color: #0b0f19;
+}
+
+.dark-mode .theme-btn:hover {
+    background: #0f766e;
+    color: #ffffff;
+}
+
+.dark-mode .card, 
+.dark-mode .charts-card { 
+    background-color: #111827 !important; 
+    color: #f8fafc !important; 
+    border: 1px solid rgba(255, 255, 255, 0.08) !important; 
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode h2, 
+.dark-mode h3, 
+.dark-mode p { 
+    color: #f8fafc !important; 
+}
+
+/* ==========================================================
+   GLOBAL DARK MODE FIX FOR TABLES, BUTTONS & CARDS ACROSS ALL PAGES
+   ========================================================== */
+
+.dark-mode .table,
+.dark-mode .table-hover tbody tr,
+.dark-mode .table td, 
+.dark-mode .table th {
+    background-color: transparent !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark-mode .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Fix Action & Outline Buttons Globally in Dark Mode */
+.dark-mode .btn-outline-secondary,
+.dark-mode .btn-outline-dark,
+.dark-mode .btn-outline-primary,
+.dark-mode .btn-outline-danger {
+    color: #94a3b8 !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    background-color: #131c31 !important;
+}
+
+.dark-mode .btn-outline-secondary:hover,
+.dark-mode .btn-outline-dark:hover,
+.dark-mode .btn-outline-primary:hover,
+.dark-mode .btn-outline-danger:hover {
+    color: #ffffff !important;
+    background-color: #1e293b !important;
+    border-color: #14b8a6 !important;
+}
+
+/* Fix Badges and Sub-elements Globally in Dark Mode */
+.dark-mode .badge.bg-light,
+.dark-mode table td div[style*="background"] {
+    background-color: #131c31 !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}

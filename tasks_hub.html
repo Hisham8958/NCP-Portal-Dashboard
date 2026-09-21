@@ -1,0 +1,764 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks Hub - NCP Portal{% endblock %}
+
+{% block header_title %}Tasks Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* NOTE: No fixed heights / overflow-y / max-height are set anywhere in this
+        file, and .table-responsive is left at Bootstrap's default (overflow-x
+        only). The page is intentionally left to flow naturally — the browser
+        window supplies the only scrollbar. */
+
+    .page-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 16px;
+    }
+    .page-title-row h1 {
+        font-family: 'Sora', sans-serif;
+        font-weight: 700;
+        font-size: 1.3rem;
+        color: var(--ink);
+        margin: 0 0 3px 0;
+    }
+    .page-title-row p {
+        font-size: 0.82rem;
+        color: var(--ink-soft);
+        margin: 0;
+    }
+
+    /* Toolbar */
+    .task-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 11px 18px;
+        border-bottom: 1px solid var(--card-border);
+    }
+    .task-search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 190px;
+        max-width: 240px;
+    }
+    .task-search-wrap i {
+        position: absolute;
+        left: 13px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--ink-soft);
+        font-size: 0.82rem;
+        pointer-events: none;
+    }
+    .task-search-wrap input {
+        padding-left: 34px;
+    }
+    .form-control, .form-select {
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--card-border);
+        font-size: 0.83rem;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary-accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-accent) 16%, transparent);
+    }
+
+    /* Filter row (Super Admin & Regular User) */
+    .task-filter-row {
+        padding: 9px 18px 11px 18px;
+        border-bottom: 1px solid var(--card-border);
+        background: color-mix(in srgb, var(--body-bg) 45%, var(--card-bg));
+    }
+    .task-filter-row .filter-label {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.64rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--ink-soft);
+        white-space: nowrap;
+    }
+    .reset-filters-btn {
+        border-radius: 999px;
+        font-size: 0.7rem;
+        padding: 4px 13px;
+        border: 1px solid var(--card-border);
+        background: var(--card-bg);
+        color: var(--ink-soft);
+        transition: all 0.15s ease;
+    }
+    .reset-filters-btn:hover {
+        color: var(--primary-accent);
+        border-color: var(--primary-accent);
+    }
+
+    /* Table */
+    #tasksTable thead th {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.62rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        background: color-mix(in srgb, var(--body-bg) 60%, var(--card-bg));
+        border-bottom: 1px solid var(--card-border);
+        padding: 9px 14px;
+        white-space: nowrap;
+    }
+    #tasksTable td {
+        padding: 9px 14px;
+        border-bottom: 1px solid var(--card-border);
+        vertical-align: middle;
+        font-size: 0.82rem;
+        line-height: 1.3;
+    }
+    #tasksTable tbody tr:last-child td { border-bottom: none; }
+    #tasksTable tbody tr.task-row {
+        transition: background-color 0.15s ease;
+    }
+    #tasksTable tbody tr.task-row:hover {
+        background-color: color-mix(in srgb, var(--primary-accent) 4%, transparent);
+    }
+
+    .id-chip {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 0.7rem;
+        color: var(--ink-soft);
+        background: color-mix(in srgb, var(--body-bg) 55%, var(--card-bg));
+        border: 1px solid var(--card-border);
+        border-radius: 6px;
+        padding: 2px 7px;
+        white-space: nowrap;
+    }
+
+    .task-name-cell .task-name {
+        font-weight: 600;
+        color: var(--ink);
+        font-size: 0.85rem;
+        line-height: 1.25;
+    }
+    .task-name-cell .task-desc {
+        color: var(--ink-soft);
+        font-size: 0.73rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-width: 220px;
+    }
+
+    .project-chip {
+        font-size: 0.7rem;
+        font-weight: 500;
+        padding: 2px 9px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--primary-accent) 10%, transparent);
+        color: var(--primary-accent-deep);
+        border: 1px solid color-mix(in srgb, var(--primary-accent) 22%, transparent);
+        white-space: nowrap;
+        display: inline-block;
+    }
+
+    .member-chip-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        max-width: 190px;
+    }
+    .member-chip {
+        font-size: 0.66rem;
+        font-weight: 500;
+        padding: 2px 7px 2px 5px;
+        border-radius: 999px;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        color: var(--ink);
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        white-space: nowrap;
+    }
+    .member-chip i { color: var(--ink-soft); font-size: 0.66rem; }
+    .unassigned-label {
+        color: var(--ink-soft);
+        font-style: italic;
+        font-size: 0.74rem;
+    }
+
+    /* Status badges */
+    .status-badge {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 999px;
+        white-space: nowrap;
+        display: inline-block;
+        letter-spacing: 0.01em;
+    }
+    .status-active {
+        background: color-mix(in srgb, #0dcaf0 14%, transparent);
+        color: #0aa5c4;
+        border: 1px solid color-mix(in srgb, #0dcaf0 30%, transparent);
+    }
+    .status-inprogress {
+        background: color-mix(in srgb, #ffc107 16%, transparent);
+        color: #b8860a;
+        border: 1px solid color-mix(in srgb, #ffc107 32%, transparent);
+    }
+    .status-completed {
+        background: color-mix(in srgb, #198754 14%, transparent);
+        color: #198754;
+        border: 1px solid color-mix(in srgb, #198754 30%, transparent);
+    }
+    .status-default {
+        background: color-mix(in srgb, #6c757d 14%, transparent);
+        color: #6c757d;
+        border: 1px solid color-mix(in srgb, #6c757d 30%, transparent);
+    }
+
+    /* Progress */
+    .progress-cell {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 100px;
+    }
+    .progress-cell .progress-pct {
+        font-weight: 700;
+        font-size: 0.73rem;
+        color: var(--ink);
+        white-space: nowrap;
+    }
+    .progress-track {
+        flex-grow: 1;
+        height: 5px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--body-bg) 55%, var(--card-bg));
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--primary-accent-bright), var(--primary-accent-deep));
+    }
+
+    .date-cell {
+        color: var(--ink-soft);
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+
+    /* Attachment + action icon buttons */
+    .icon-action-btn {
+        width: 29px;
+        height: 29px;
+        border-radius: 7px;
+        border: 1px solid var(--card-border);
+        background: var(--card-bg);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink-soft);
+        font-size: 0.85rem;
+        transition: all 0.15s ease;
+    }
+    .icon-action-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+    .icon-action-btn.view-btn:hover { color: var(--primary-accent); border-color: var(--primary-accent); }
+    .icon-action-btn.edit-btn:hover { color: var(--primary-accent); border-color: var(--primary-accent); }
+    .icon-action-btn.delete-btn:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
+    .icon-action-btn.remove-btn {
+        width: 24px;
+        height: 24px;
+        border: none;
+        color: var(--ink-soft);
+        font-size: 0.75rem;
+    }
+    .icon-action-btn.remove-btn:hover { color: #fff; background: var(--danger); }
+
+    .attachment-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.7rem;
+        color: var(--ink-soft);
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 999px;
+        padding: 3px 9px 3px 11px;
+        max-width: 115px;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+    .attachment-chip:hover { color: var(--primary-accent); border-color: var(--primary-accent); }
+    .attachment-chip span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .no-file-label {
+        color: var(--ink-soft);
+        font-style: italic;
+        font-size: 0.74rem;
+    }
+
+    .actions-cell-inner {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    /* Empty state */
+    .task-empty {
+        padding: 44px 20px;
+        text-align: center;
+    }
+    .task-empty i {
+        font-size: 1.8rem;
+        color: var(--ink-soft);
+        opacity: 0.55;
+        margin-bottom: 8px;
+        display: block;
+    }
+    .task-empty h6 { font-weight: 600; color: var(--ink); margin-bottom: 3px; font-size: 0.88rem; }
+    .task-empty p { color: var(--ink-soft); font-size: 0.78rem; margin: 0; }
+
+    /* Compact pagination footer */
+    .task-pagination-footer {
+        padding: 10px 18px !important;
+    }
+
+    @media (max-width: 991.98px) {
+        #tasksTable thead { display: none; }
+        #tasksTable, #tasksTable tbody, #tasksTable tr, #tasksTable td {
+            display: block; width: 100%;
+        }
+        #tasksTable tbody { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+        #tasksTable tr.task-row {
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-xs);
+            padding: 2px 12px;
+        }
+        #tasksTable td {
+            border-bottom: 1px dashed var(--card-border) !important;
+            padding: 8px 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        #tasksTable td:last-child { border-bottom: none !important; }
+        #tasksTable td::before {
+            content: attr(data-label);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--ink-soft);
+            flex-shrink: 0;
+        }
+        #tasksTable td.task-name-cell,
+        #tasksTable td.actions-cell {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        #tasksTable td.task-name-cell .task-desc { max-width: 100%; }
+        #tasksTable td.actions-cell::before { display: none; }
+        #tasksTable td.actions-cell .actions-cell-inner { width: 100%; justify-content: flex-start; }
+        #tasksTable td.progress-td { min-width: 0; }
+        #tasksTable td.progress-td .progress-cell { width: 100%; }
+
+        .page-title-row { align-items: flex-start; }
+        .page-title-row .btn { width: 100%; justify-content: center; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-title-row">
+    <div>
+        <h1>Tasks Hub</h1>
+        <p>Track task progress, ownership, and deadlines across your projects.</p>
+    </div>
+    <a href="{{ url_for('tasks_hub', action='add') }}" class="btn btn-dark rounded-pill px-4 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" style="font-size: 0.85rem;">
+        <i class="bi bi-plus-lg"></i> Add New Task
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+
+    <!-- Toolbar: search + entries -->
+    <div class="task-toolbar">
+        <div class="d-flex align-items-center gap-2">
+            <h6 class="fw-semibold mb-0" style="font-size: 0.88rem;">Tasks List</h6>
+            <span class="badge bg-light text-secondary border rounded-pill px-2" style="font-size: 0.68rem;" id="totalCountBadge">Total: 0</span>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <div class="d-flex align-items-center gap-1 text-muted" style="font-size: 0.78rem;">
+                <span>Show</span>
+                <select id="entriesSelect" class="form-select form-select-sm px-2 py-1 rounded-pill" style="width: 68px;" onchange="changePageSize()">
+                    <option value="5" selected>5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+
+            <div class="task-search-wrap">
+                <i class="bi bi-search"></i>
+                <input type="text" id="taskSearch" class="form-control form-control-sm rounded-pill" placeholder="Search tasks, ID..." onkeyup="filterTasks()">
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Row: Project & Member Dropdowns (Super Admin & Regular User) -->
+    {% if session.get('role') == 'Super Admin' %}
+    <div class="task-filter-row">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="filter-label"><i class="bi bi-folder2-open me-1"></i>Project</span>
+                    <select id="projectFilter" class="form-select form-select-sm rounded-pill" onchange="filterTasks()">
+                        <option value="">All Projects</option>
+                        {% if projects %}
+                            {% for proj in projects %}
+                                <option value="{{ proj.name }}">{{ proj.name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="filter-label"><i class="bi bi-person-badge me-1"></i>Member</span>
+                    <select id="memberFilter" class="form-select form-select-sm rounded-pill" onchange="filterTasks()">
+                        <option value="">All Assigned Members</option>
+                        {% if all_members %}
+                            {% for mem in all_members %}
+                                <option value="{{ mem.name }}">{{ mem.name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end text-start">
+                <button class="reset-filters-btn" onclick="resetFilters()">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                </button>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="task-filter-row">
+        <div class="row g-2 align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="filter-label"><i class="bi bi-folder2-open me-1"></i>Project</span>
+                    <select id="projectFilter" class="form-select form-select-sm rounded-pill" onchange="filterTasks()">
+                        <option value="">All Projects</option>
+                        {% if projects %}
+                            {% for proj in projects %}
+                                <option value="{{ proj.name }}">{{ proj.name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end text-start">
+                <button class="reset-filters-btn" onclick="resetFilters()">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Table Body -->
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table mb-0" id="tasksTable">
+                <thead>
+                    <tr>
+                        <th>Task ID</th>
+                        <th>Task Name & Description</th>
+                        <th>Project</th>
+                        <th>Assigned Members</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Attachment</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% if tasks %}
+                        {% for task in tasks %}
+                        <tr class="task-row">
+                            <!-- Task ID / Code Column -->
+                            <td data-label="Task ID">
+                                <span class="id-chip">{{ task.task_code or 'N/A' }}</span>
+                            </td>
+
+                            <!-- Task Name & Description -->
+                            <td data-label="Task" class="task-name-cell">
+                                <div class="task-name">{{ task.name }}</div>
+                                {% if task.description %}
+                                    <div class="task-desc" title="{{ task.description }}">{{ task.description }}</div>
+                                {% endif %}
+                            </td>
+
+                            <!-- Project Name -->
+                            <td data-label="Project">
+                                <span class="project-chip">{{ task.project_name }}</span>
+                            </td>
+
+                            <!-- Assigned Team Members -->
+                            <td data-label="Members">
+                                {% if task.assigned_members %}
+                                    <div class="member-chip-group">
+                                        {% for member in task.assigned_members %}
+                                            <span class="member-chip" title="{{ member.name }}">
+                                                <i class="bi bi-person-fill"></i>{{ member.name }}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="unassigned-label">Unassigned</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Status Badge -->
+                            <td data-label="Status">
+                                {% if task.status == 'Active' %}
+                                    <span class="status-badge status-active">Active</span>
+                                {% elif task.status == 'In Progress' %}
+                                    <span class="status-badge status-inprogress">In Progress</span>
+                                {% elif task.status == 'Completed' %}
+                                    <span class="status-badge status-completed">Completed</span>
+                                {% else %}
+                                    <span class="status-badge status-default">{{ task.status }}</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Progress Bar -->
+                            <td data-label="Progress" class="progress-td">
+                                <div class="progress-cell">
+                                    <span class="progress-pct">{{ task.progress }}%</span>
+                                    <div class="progress-track">
+                                        <div class="progress-fill" style="width: {{ task.progress }}%;"></div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Start Date -->
+                            <td data-label="Start Date" class="date-cell">
+                                {{ task.start_date.strftime('%d/%m/%y') if task.start_date and task.start_date.__class__.__name__ in ['date', 'datetime'] else (task.start_date[:10] | string | replace('-', '/')) if task.start_date else 'N/A' }}
+                            </td>
+
+                            <!-- End Date -->
+                            <td data-label="End Date" class="date-cell">
+                                {{ task.end_date.strftime('%d/%m/%y') if task.end_date and task.end_date.__class__.__name__ in ['date', 'datetime'] else (task.end_date[:10] | string | replace('-', '/')) if task.end_date else 'N/A' }}
+                            </td>
+
+                            <!-- Attachment -->
+                            <td data-label="Attachment">
+                                {% if task.attachment %}
+                                    <div class="d-flex align-items-center gap-1">
+                                        <a href="{{ url_for('static', filename='uploads/' + task.attachment) }}" target="_blank" class="attachment-chip" title="View File">
+                                            <i class="bi bi-paperclip"></i><span>{{ task.attachment.split('/')[-1].split('_', 1)[-1] }}</span>
+                                        </a>
+                                        <a href="{{ url_for('delete_task_attachment', task_id=task.id) }}" class="icon-action-btn remove-btn" onclick="return confirm('Delete this attachment?');" title="Delete Attachment">
+                                            <i class="bi bi-x-lg"></i>
+                                        </a>
+                                    </div>
+                                {% else %}
+                                    <span class="no-file-label">No file</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Actions -->
+                            <td data-label="Actions" class="text-end actions-cell">
+                                <div class="actions-cell-inner">
+                                    <a href="{{ url_for('update_task', task_id=task.id) }}" class="icon-action-btn edit-btn" title="Edit Task">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    <a href="{{ url_for('delete_task', task_id=task.id) }}" class="icon-action-btn delete-btn" title="Delete Task" onclick="return confirm('Are you sure you want to delete this task?');">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr id="noTasksRow">
+                            <td colspan="10">
+                                <div class="task-empty">
+                                    <i class="bi bi-inbox"></i>
+                                    <h6>No tasks found</h6>
+                                    <p>Click <strong>"+ Add New Task"</strong> to create one.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="card-footer bg-transparent task-pagination-footer d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 border-top">
+        <div class="text-muted" style="font-size: 0.78rem;" id="paginationInfo">
+            Showing 0 to 0 of 0 entries
+        </div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0" id="paginationControls">
+                <!-- Dynamic Pagination Buttons -->
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentPage = 1;
+    let rowsPerPage = 5;
+    let filteredRows = [];
+
+    document.addEventListener("DOMContentLoaded", function () {
+        initPagination();
+    });
+
+    function getRows() {
+        const query = document.getElementById('taskSearch').value.toLowerCase();
+
+        const projectFilterEl = document.getElementById('projectFilter');
+        const memberFilterEl = document.getElementById('memberFilter');
+
+        const selectedProject = projectFilterEl ? projectFilterEl.value.toLowerCase() : '';
+        const selectedMember = memberFilterEl ? memberFilterEl.value.toLowerCase() : '';
+
+        const allRows = Array.from(document.querySelectorAll("#tableBody tr.task-row"));
+
+        return allRows.filter(row => {
+            const taskCode = row.cells[0]?.textContent.toLowerCase() || '';
+            const name = row.cells[1]?.textContent.toLowerCase() || '';
+            const proj = row.cells[2]?.textContent.toLowerCase() || '';
+            const members = row.cells[3]?.textContent.toLowerCase() || '';
+
+            const matchesSearch = taskCode.includes(query) || name.includes(query) || proj.includes(query) || members.includes(query);
+            const matchesProject = !selectedProject || proj.includes(selectedProject);
+            const matchesMember = !selectedMember || members.includes(selectedMember);
+
+            return matchesSearch && matchesProject && matchesMember;
+        });
+    }
+
+    function resetFilters() {
+        document.getElementById('taskSearch').value = '';
+        const projEl = document.getElementById('projectFilter');
+        const memEl = document.getElementById('memberFilter');
+        if (projEl) projEl.value = '';
+        if (memEl) memEl.value = '';
+        filterTasks();
+    }
+
+    function initPagination() {
+        currentPage = 1;
+        displayTableData();
+    }
+
+    function changePageSize() {
+        rowsPerPage = parseInt(document.getElementById('entriesSelect').value);
+        currentPage = 1;
+        displayTableData();
+    }
+
+    function filterTasks() {
+        currentPage = 1;
+        displayTableData();
+    }
+
+    function displayTableData() {
+        const allRows = Array.from(document.querySelectorAll("#tableBody tr.task-row"));
+        filteredRows = getRows();
+
+        allRows.forEach(r => r.style.display = 'none');
+
+        const totalEntries = filteredRows.length;
+        document.getElementById('totalCountBadge').textContent = `Total: ${totalEntries}`;
+
+        const noRow = document.getElementById('noTasksRow');
+        if (noRow) {
+            noRow.style.display = (totalEntries === 0 && allRows.length === 0) ? '' : 'none';
+        }
+
+        if (totalEntries === 0) {
+            document.getElementById('paginationInfo').textContent = `Showing 0 to 0 of 0 entries`;
+            document.getElementById('paginationControls').innerHTML = '';
+            return;
+        }
+
+        const totalPages = Math.ceil(totalEntries / rowsPerPage);
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = Math.min(start + rowsPerPage, totalEntries);
+
+        for (let i = start; i < end; i++) {
+            filteredRows[i].style.display = '';
+        }
+
+        document.getElementById('paginationInfo').textContent = `Showing ${start + 1} to ${end} of ${totalEntries} entries`;
+
+        let paginationHTML = '';
+
+        paginationHTML += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">Prev</a>
+        </li>`;
+
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                paginationHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>
+                </li>`;
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+
+        paginationHTML += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">Next</a>
+        </li>`;
+
+        document.getElementById('paginationControls').innerHTML = paginationHTML;
+    }
+
+    function changePage(page) {
+        const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = Math.min(start + rowsPerPage, filteredRows.length);
+
+        Array.from(document.querySelectorAll("#tableBody tr.task-row")).forEach(r => r.style.display = 'none');
+
+        for (let i = start; i < end; i++) {
+            filteredRows[i].style.display = '';
+        }
+
+        document.getElementById('paginationInfo').textContent = `Showing ${start + 1} to ${end} of ${filteredRows.length} entries`;
+        displayTableData();
+    }
+</script>
+{% endblock %}

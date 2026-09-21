@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - NCP Portal</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts (Sora for display, Inter for body) -->
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --body-bg: #f4f5f8;
+            --ink: #0f172a;
+            --ink-soft: #64748b;
+            --primary-accent: #0f766e;
+            --primary-accent-bright: #14b8a6;
+            --primary-accent-deep: #0c5f58;
+            --gold-accent: #c9982f;
+            --card-border: rgba(15, 23, 42, 0.08);
+            --danger: #dc3545;
+            --radius-lg: 22px;
+            --radius-sm: 12px;
+            --shadow-card: 0 24px 48px -18px rgba(15, 23, 42, 0.16), 0 8px 16px -8px rgba(15, 23, 42, 0.06);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--body-bg);
+            background-image:
+                radial-gradient(circle at 15% 0%, rgba(20, 184, 166, 0.14) 0%, rgba(244, 245, 248, 0) 45%),
+                radial-gradient(circle at 100% 100%, rgba(201, 152, 47, 0.10) 0%, rgba(244, 245, 248, 0) 40%);
+            color: var(--ink);
+            letter-spacing: -0.01em;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        h1, h2, h3, h4, h5, h6, .brand-text {
+            font-family: 'Sora', 'Inter', sans-serif;
+        }
+
+        /* Login Card */
+        .login-card {
+            width: 440px;
+            max-width: 100%;
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            background: #ffffff;
+            box-shadow: var(--shadow-card);
+            padding: 40px 40px 32px 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        .login-card::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-accent-deep), var(--primary-accent-bright) 55%, var(--gold-accent));
+        }
+        @media (max-width: 480px) {
+            .login-card { padding: 32px 22px 24px 22px; border-radius: 18px; }
+        }
+
+        /* Logo */
+        .login-logo-container {
+            width: 76px;
+            height: 76px;
+            background: #ffffff;
+            border: 1px solid var(--card-border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px auto;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08), 0 0 0 5px rgba(20, 184, 166, 0.07);
+        }
+        .login-logo-container img {
+            width: 56px;
+            height: 56px;
+            object-fit: contain;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+        .portal-title-badge {
+            font-family: 'Sora', sans-serif;
+            font-weight: 700;
+            font-size: 0.78rem;
+            color: var(--primary-accent);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            display: block;
+        }
+        .login-heading {
+            font-weight: 700;
+            color: var(--ink);
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+        .login-subtext {
+            color: var(--ink-soft);
+            font-size: 0.86rem;
+        }
+
+        /* Form */
+        .field-label {
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.78rem;
+            color: var(--ink-soft);
+            margin-bottom: 6px;
+            display: block;
+        }
+        .input-group-modern {
+            position: relative;
+            display: flex;
+            align-items: stretch;
+            border: 1px solid #d7dce3;
+            border-radius: 999px;
+            background: #fff;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+            overflow: hidden;
+        }
+        .input-group-modern:focus-within {
+            border-color: var(--primary-accent-bright);
+            box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.13);
+        }
+        .input-group-modern .field-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            flex-shrink: 0;
+            color: var(--ink-soft);
+            font-size: 0.95rem;
+            background: transparent;
+        }
+        .input-group-modern .form-control {
+            border: none;
+            padding: 11px 14px 11px 0;
+            font-size: 0.9rem;
+            background: transparent;
+            box-shadow: none !important;
+        }
+        .input-group-modern .form-control:focus {
+            border: none;
+            box-shadow: none;
+        }
+        .password-toggle-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            flex-shrink: 0;
+            background: transparent;
+            border: none;
+            color: var(--ink-soft);
+            cursor: pointer;
+            transition: color 0.15s ease;
+        }
+        .password-toggle-btn:hover { color: var(--primary-accent); }
+        .password-toggle-btn:focus-visible {
+            outline: 2px solid var(--primary-accent-bright);
+            outline-offset: -2px;
+            border-radius: 50%;
+        }
+
+        .auth-link {
+            color: var(--primary-accent);
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .auth-link:hover {
+            color: var(--primary-accent-bright);
+            text-decoration: underline;
+        }
+
+        .btn-custom-dark {
+            background-color: var(--ink);
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.92rem;
+            padding: 12px 0;
+            border: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-custom-dark:hover {
+            background-color: var(--primary-accent-deep);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px -6px rgba(15, 118, 110, 0.35);
+        }
+        .btn-custom-dark:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .btn-custom-dark:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.25);
+        }
+
+        .auth-divider {
+            border-top: 1px solid var(--card-border);
+            margin: 22px 0 16px 0;
+        }
+
+        .alert {
+            border-radius: var(--radius-sm) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <!-- HD Optimized Logo Container -->
+            <div class="login-logo-container">
+                <img src="{{ url_for('static', filename='images/ncp.png') }}" alt="NCP Logo">
+            </div>
+            <!-- Logo ke sath Text Label -->
+            <span class="portal-title-badge">National Centre for Physics</span>
+            <h3 class="login-heading">Welcome Back</h3>
+            <p class="login-subtext mb-0">Please enter your details to sign in</p>
+        </div>
+
+        <!-- Flash Messages (Success / Info / Warning alerts) -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else ('warning' if category == 'warning' else 'info') }} alert-dismissible fade show border-0 shadow-sm small py-2 mb-3" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Error message -->
+        {% if error %}
+            <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm small py-2 mb-3" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ error }}
+                <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
+
+        <form action="{{ url_for('login') if url_for else '/login' }}" method="POST">
+            <div class="mb-3">
+                <label class="field-label">Gmail / Username</label>
+                <div class="input-group-modern">
+                    <span class="field-icon"><i class="bi bi-person"></i></span>
+                    <input type="text" class="form-control" name="username" required placeholder="Enter your username or email">
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <label class="field-label">Password</label>
+                <div class="input-group-modern">
+                    <span class="field-icon"><i class="bi bi-lock"></i></span>
+                    <input type="password" class="form-control" name="password" id="loginPassword" required placeholder="••••••••">
+                    <button type="button" class="password-toggle-btn" id="togglePassword" aria-label="Show password">
+                        <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Forgot Password Link placed right below password field -->
+            <div class="d-flex justify-content-end mb-4">
+                <a href="{{ url_for('forgot_password') if url_for else '/forgot-password' }}" class="text-decoration-none small fw-medium auth-link">Forgot Password?</a>
+            </div>
+
+            <div class="d-grid mb-3">
+                <button type="submit" class="btn btn-custom-dark rounded-pill shadow-sm">
+                    Sign In <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </form>
+
+        <div class="auth-divider"></div>
+
+        <!-- Register link -->
+        <div class="text-center">
+            <p class="small text-muted mb-0">Don't have an account? <a href="{{ url_for('register') if url_for else '/register' }}" class="auth-link">Sign Up</a></p>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Password visibility toggle (purely cosmetic, does not affect form submission)
+        const toggleBtn = document.getElementById('togglePassword');
+        const pwField = document.getElementById('loginPassword');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        if (toggleBtn && pwField && toggleIcon) {
+            toggleBtn.addEventListener('click', function () {
+                const isHidden = pwField.type === 'password';
+                pwField.type = isHidden ? 'text' : 'password';
+                toggleIcon.classList.toggle('bi-eye', !isHidden);
+                toggleIcon.classList.toggle('bi-eye-slash', isHidden);
+                toggleBtn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+            });
+        }
+    </script>
+</body>
+</html>

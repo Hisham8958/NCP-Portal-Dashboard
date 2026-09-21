@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Add Project - NCP Portal{% endblock %}
+
+{% block header_title %}Add New Project{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mb-3">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white p-4 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-secondary fs-6">Add New Project</h5>
+                <a href="{{ url_for('projects') }}" class="btn btn-outline-secondary btn-sm px-3 py-2 rounded-pill">Back to Projects</a>
+            </div>
+            <div class="card-body p-4 p-xl-5">
+                <form method="POST" action="{{ url_for('add_project') }}" id="projectForm" novalidate>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Project Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control py-2" placeholder="Enter project name" required>
+                        <div class="invalid-feedback">Please fill out this field.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Description</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Enter project description"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Select Department to Assign Team <span class="text-danger">*</span></label>
+                        <select name="department_id" id="departmentSelect" class="form-select py-2" required>
+                            <option value="" selected disabled>-- Choose Department --</option>
+                            {% for dept in departments %}
+                                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">Please fill out this field.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Team Owner / Lead <span class="text-danger">*</span></label>
+                        <select name="team_owner_id" id="teamOwnerSelect" class="form-select py-2" required>
+                            <option value="" selected disabled>-- Select Team Owner --</option>
+                        </select>
+                        <div class="invalid-feedback">Please fill out this field.</div>
+                        <div class="form-text">Choose a team member from the selected department to act as the owner.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">Assign Team Members</label>
+                        <div id="teamMembersContainer" class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                            <p class="text-muted small mb-0">Select a department above to view and assign employees.</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" name="start_date" id="startDate" class="form-control py-2" required>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">End Date <span class="text-danger">*</span></label>
+                            <input type="date" name="end_date" id="endDate" class="form-control py-2" required>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Status</label>
+                            <select name="status" id="projectStatus" class="form-select py-2" required>
+                                <option value="Initiated" selected>Initiated</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-medium">Progress (%)</label>
+                            <input type="number" name="progress" id="projectProgress" class="form-control py-2" min="0" max="100" value="0" required oninput="validateProgress(this)">
+                            <div class="invalid-feedback">Please fill out this field.</div>
+                            <div id="progressError" class="text-danger small mt-1" style="display: none; font-size: 0.7rem;">Progress must be between 0 and 100!</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <a href="{{ url_for('projects') }}" class="btn btn-outline-secondary px-4 py-2 rounded-pill">Cancel</a>
+                        <button type="submit" class="btn btn-dark fw-semibold px-4 py-2 rounded-pill">Add Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function validateProgress(input) {
+        const errorDiv = document.getElementById('progressError');
+        let val = parseInt(input.value);
+        if (val > 100) {
+            input.value = 100;
+            if(errorDiv) errorDiv.style.display = 'block';
+        } else if (val < 0) {
+            input.value = 0;
+            if(errorDiv) errorDiv.style.display = 'block';
+        } else {
+            if(errorDiv) errorDiv.style.display = 'none';
+        }
+    }
+
+    document.getElementById('projectForm').addEventListener('submit', function(event) {
+        const progressInput = document.getElementById('projectProgress');
+        if (progressInput) {
+            progressInput.removeAttribute('readonly');
+        }
+
+        const requiredFields = document.querySelectorAll("[required]");
+        let firstInvalidField = null;
+
+        requiredFields.forEach(field => {
+            field.classList.remove('is-invalid');
+        });
+
+        for (let field of requiredFields) {
+            if (field.offsetParent === null) continue;
+            
+            if (!field.value || field.value.trim() === "") {
+                firstInvalidField = field;
+                break;
+            }
+        }
+
+        if (firstInvalidField) {
+            event.preventDefault();
+            event.stopPropagation();
+            firstInvalidField.classList.add('is-invalid');
+            firstInvalidField.focus();
+        }
+    });
+
+    document.querySelectorAll("[required]").forEach(field => {
+        field.addEventListener("input", function() {
+            if (this.value.trim() !== "") {
+                this.classList.remove('is-invalid');
+            }
+        });
+        field.addEventListener("change", function() {
+            if (this.value !== "") {
+                this.classList.remove('is-invalid');
+            }
+        });
+    });
+
+    document.getElementById('departmentSelect').addEventListener('change', function() {
+        const deptId = this.value;
+        const teamOwnerSelect = document.getElementById('teamOwnerSelect');
+        const membersContainer = document.getElementById('teamMembersContainer');
+
+        teamOwnerSelect.innerHTML = '<option value="" selected disabled>-- Select Team Owner --</option>';
+        membersContainer.innerHTML = '<p class="text-muted small mb-0">Loading members...</p>';
+
+        if (!deptId) return;
+
+        fetch(`/api/get_department_members/${deptId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length === 0) {
+                    teamOwnerSelect.innerHTML = '<option value="" selected disabled>No members found</option>';
+                    membersContainer.innerHTML = '<p class="text-muted small mb-0">No team members found in this department.</p>';
+                    return;
+                }
+
+                data.forEach(emp => {
+                    const opt = document.createElement('option');
+                    opt.value = emp.id;
+                    opt.textContent = `${emp.name} (${emp.designation})`;
+                    teamOwnerSelect.appendChild(opt);
+                });
+
+                membersContainer.innerHTML = '';
+                data.forEach(emp => {
+                    const div = document.createElement('div');
+                    div.className = 'form-check mb-2';
+                    div.innerHTML = `
+                        <input class="form-check-input" type="checkbox" name="employee_ids" value="${emp.id}" id="emp_${emp.id}">
+                        <label class="form-check-label" for="emp_${emp.id}">
+                            ${emp.name} <span class="text-muted small">(${emp.designation})</span>
+                        </label>
+                    `;
+                    membersContainer.appendChild(div);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching department members:', error);
+                membersContainer.innerHTML = '<p class="text-danger small mb-0">Error loading team members.</p>';
+            });
+    });
+
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+
+    startDateInput.addEventListener('change', function() {
+        endDateInput.min = this.value;
+        if (endDateInput.value && endDateInput.value < this.value) {
+            endDateInput.value = this.value;
+        }
+    });
+
+    const statusSelect = document.getElementById('projectStatus');
+    const progressInput = document.getElementById('projectProgress');
+
+    function updateProgressField() {
+        const errorDiv = document.getElementById('progressError');
+        if (statusSelect.value === 'Initiated') {
+            progressInput.value = 0;
+            progressInput.setAttribute('readonly', true);
+            progressInput.style.backgroundColor = '#e9ecef';
+            if(errorDiv) errorDiv.style.display = 'none';
+        } else if (statusSelect.value === 'Completed') {
+            progressInput.value = 100;
+            progressInput.setAttribute('readonly', true);
+            progressInput.style.backgroundColor = '#e9ecef';
+            if(errorDiv) errorDiv.style.display = 'none';
+        } else {
+            progressInput.removeAttribute('readonly');
+            progressInput.style.backgroundColor = '#fff';
+        }
+    }
+
+    updateProgressField();
+    statusSelect.addEventListener('change', updateProgressField);
+
+    const teamOwnerSelect = document.getElementById('teamOwnerSelect');
+    let previousOwnerId = "";
+
+    teamOwnerSelect.addEventListener('change', function() {
+        const newOwnerId = this.value;
+        
+        document.querySelectorAll('input[name="employee_ids"]').forEach(cb => {
+            if (cb.value === previousOwnerId && previousOwnerId !== "") {
+                cb.checked = false;
+            }
+            if (cb.value === newOwnerId) {
+                cb.checked = true;
+            }
+        });
+
+        previousOwnerId = newOwnerId;
+    });
+</script>
+{% endblock %}
