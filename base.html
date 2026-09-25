@@ -296,6 +296,30 @@
 
         ::selection { background: var(--accent-ring); }
 
+        /* Smooth cross-fade whenever the theme is switched. The inline
+           pre-paint script above already sets data-bs-theme before any CSS
+           is evaluated, so this never animates the very first paint —
+           only subsequent toggles. */
+        body,
+        .app-sidebar,
+        .top-navbar,
+        .card,
+        .dropdown-menu,
+        .modal-content,
+        .form-control,
+        .form-select,
+        .table,
+        .icon-btn,
+        .user-pill,
+        .menu-link,
+        .panel-header,
+        .list-row,
+        .app-toast,
+        #firstLoginWelcomeBox {
+            transition: background-color 0.3s var(--ease-standard), border-color 0.3s var(--ease-standard),
+                        color 0.3s var(--ease-standard), box-shadow 0.3s var(--ease-standard);
+        }
+
         * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -545,7 +569,10 @@
             padding: 10px var(--gutter);
             background: var(--body-bg);
             border-bottom: 1px solid var(--card-border);
+            transition: box-shadow var(--speed) var(--ease-standard), background-color 0.3s var(--ease-standard),
+                        border-color 0.3s var(--ease-standard);
         }
+        .top-navbar.is-scrolled { box-shadow: var(--shadow-sm); }
         @supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
             .top-navbar {
                 background: color-mix(in srgb, var(--body-bg) 82%, transparent);
@@ -586,7 +613,8 @@
             color: var(--ink);
             box-shadow: var(--shadow-xs);
             transition: border-color var(--speed-fast) ease, box-shadow var(--speed-fast) ease,
-                        transform var(--speed-fast) ease, color var(--speed-fast) ease;
+                        transform var(--speed-fast) ease, color var(--speed-fast) ease,
+                        background-color 0.3s var(--ease-standard);
         }
         .icon-btn:hover {
             color: var(--ink);
@@ -594,7 +622,11 @@
             box-shadow: var(--shadow-sm);
             transform: translateY(-1px);
         }
+        .icon-btn:active { transform: translateY(0) scale(0.94); }
         .icon-btn::after { display: none; }
+
+        #themeIcon { display: inline-block; transition: transform 0.32s var(--ease-standard), opacity 0.2s ease; }
+        #themeToggleBtn.is-switching #themeIcon { transform: rotate(180deg) scale(0.6); opacity: 0; }
 
         .notif-badge {
             position: absolute;
@@ -639,7 +671,7 @@
             transition: transform var(--speed) ease, box-shadow var(--speed) ease, border-color var(--speed) ease;
         }
         .card-hover:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
             box-shadow: var(--shadow-md);
             border-color: var(--primary-accent);
         }
@@ -1375,7 +1407,17 @@
             var current = root.getAttribute('data-theme-pref') || 'system';
             var next = THEME_ORDER[current] || 'light';
             try { localStorage.setItem('theme', next); } catch (e) {}
-            applyTheme(next);
+
+            var btn = document.getElementById('themeToggleBtn');
+            if (btn) {
+                btn.classList.add('is-switching');
+                window.setTimeout(function () {
+                    applyTheme(next);
+                    window.setTimeout(function () { btn.classList.remove('is-switching'); }, 40);
+                }, 140);
+            } else {
+                applyTheme(next);
+            }
         }
 
         /* ---------------- Toasts ---------------- */
@@ -1408,11 +1450,21 @@
             });
         }
 
+        /* ---------------- Navbar scroll depth ---------------- */
+        function wireNavbarScrollShadow() {
+            var navbar = document.querySelector('.top-navbar');
+            if (!navbar) { return; }
+            function sync() { navbar.classList.toggle('is-scrolled', window.scrollY > 4); }
+            window.addEventListener('scroll', sync, { passive: true });
+            sync();
+        }
+
         /* ---------------- Wiring ---------------- */
         document.addEventListener('DOMContentLoaded', function () {
             applyTheme(root.getAttribute('data-theme-pref') || 'system');
             syncCollapseButton();
             document.body.classList.toggle('sidebar-collapsed', root.classList.contains('sidebar-collapsed'));
+            wireNavbarScrollShadow();
 
             toggleBtn.addEventListener('click', toggleMobileSidebar);
             backdrop.addEventListener('click', closeMobileSidebar);
