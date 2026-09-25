@@ -13,27 +13,32 @@
         --stat-pad: 18px 20px;
         --panel-pad: 20px 22px;
         --scroll-thumb-soft: var(--card-border);
+        --shadow-xs: var(--shadow-xs, 0 1px 2px rgba(15, 23, 42, 0.06));
+        --shadow-sm: var(--shadow-sm, 0 6px 18px -6px rgba(15, 23, 42, 0.16));
     }
 
     .dash-subhead {
         color: var(--ink-soft);
         font-size: var(--fs-sm, 0.84rem);
         max-width: 68ch;
-        margin: 0 0 1.5rem;
+        margin: 0 0 1.75rem;
+        line-height: 1.5;
     }
 
-    .dash-section + .dash-section { margin-top: 1.5rem; }
+    .dash-section + .dash-section { margin-top: 1.75rem; }
 
     .dash-section-label {
         font-family: var(--font-mono, 'IBM Plex Mono', monospace);
         font-size: 0.66rem;
         letter-spacing: 0.08em;
+        text-transform: uppercase;
         color: var(--ink-faint, var(--ink-soft));
-        margin: 0 0 0.75rem;
+        margin: 0 0 0.85rem;
     }
 
     /* ---------- KPI cards ---------- */
     .stat-card {
+        position: relative;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -45,14 +50,25 @@
         border: 1px solid var(--card-border);
         border-radius: var(--radius-md, 12px);
         box-shadow: var(--shadow-xs);
+        overflow: hidden;
         transition: transform 0.18s var(--ease-standard), box-shadow 0.18s var(--ease-standard),
                     border-color 0.18s var(--ease-standard);
     }
+    .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: var(--accent-color, var(--primary-accent));
+        opacity: 0.7;
+    }
     .stat-card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-3px);
         box-shadow: var(--shadow-sm);
         border-color: var(--accent-color, var(--primary-accent));
     }
+    .stat-card:hover .stat-icon { transform: scale(1.06); }
+    .stat-icon { transition: transform 0.18s var(--ease-standard); }
     .stat-card-top {
         display: flex;
         align-items: flex-start;
@@ -118,7 +134,9 @@
         border-radius: var(--radius-md, 12px);
         box-shadow: var(--shadow-xs);
         overflow: hidden;
+        transition: box-shadow 0.18s var(--ease-standard);
     }
+    .panel:hover { box-shadow: var(--shadow-sm); }
     .panel-head {
         display: flex;
         align-items: flex-start;
@@ -196,27 +214,38 @@
     .chart-viewport--x { overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
     .chart-viewport--y { overflow-y: auto; overflow-x: hidden; padding-right: 4px; }
 
-    .chart-track { position: relative; height: 100%; min-width: 100%; }
+    .chart-track { position: relative; height: 100%; min-width: 100%; padding: 0 6px; box-sizing: border-box; }
 
     .h-chart-lg { height: 280px; }
     .h-chart-md { height: 260px; }
     .h-chart-sm { height: 240px; }
 
     .scroll-shell { position: relative; }
-    .scroll-shell::after {
+    .scroll-shell::after,
+    .scroll-shell::before {
         content: "";
         position: absolute;
         top: 0;
-        right: 0;
         width: 28px;
         height: calc(100% - 10px);
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.2s ease;
+        z-index: 1;
+    }
+    .scroll-shell::after {
+        right: 0;
         background: linear-gradient(to right, transparent, var(--card-bg));
+    }
+    .scroll-shell::before {
+        left: 0;
+        background: linear-gradient(to left, transparent, var(--card-bg));
     }
     .scroll-shell.is-overflowing-x::after { opacity: 1; }
     .scroll-shell.is-scrolled-end::after { opacity: 0; }
+    .scroll-shell.is-overflowing-x.is-scrolled-mid::before,
+    .scroll-shell.is-overflowing-x:not(.is-scrolled-start)::before { opacity: 1; }
+    .scroll-shell.is-scrolled-start::before { opacity: 0; }
 
     .empty-chart {
         display: flex;
@@ -229,14 +258,30 @@
         font-size: 0.8rem;
         text-align: center;
     }
-    .empty-chart i { font-size: 1.4rem; color: var(--ink-faint, var(--ink-soft)); }
+    .empty-chart i {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        font-size: 1.2rem;
+        color: var(--ink-faint, var(--ink-soft));
+        background: var(--surface-subtle, rgba(100, 116, 139, 0.08));
+    }
 
     @media (max-width: 767.98px) {
         .panel-head { flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px 16px 12px; }
         .panel-body { padding: 14px 16px 18px; }
         .stat-card { padding: 15px 16px; min-height: 104px; }
         .stat-value { font-size: 1.4rem; }
-        .h-chart-lg, .h-chart-md { height: 240px; }
+        .h-chart-lg, .h-chart-md { height: 220px; }
+        .chart-legend { font-size: 0.7rem; gap: 4px 14px; }
+    }
+
+    @media (max-width: 575.98px) {
+        .h-chart-lg, .h-chart-md { height: 200px; }
+        .h-chart-sm { height: 190px; }
     }
 </style>
 {% endblock %}
@@ -604,10 +649,14 @@
 
         var per = parseInt(track.getAttribute('data-per'), 10) || 80;
         var axis = track.getAttribute('data-axis');
+        // Fall back to the panel/body width if the viewport hasn't been laid
+        // out yet (e.g. first paint, collapsed sidebar) so bars never start
+        // out compressed and overlapping.
+        var availableWidth = viewport.clientWidth || (viewport.parentElement && viewport.parentElement.clientWidth) || window.innerWidth;
 
         if (axis === 'x') {
-            var needed = count * per;
-            track.style.width = needed > viewport.clientWidth ? needed + 'px' : '100%';
+            var needed = Math.max(count, 1) * per;
+            track.style.width = needed > availableWidth ? needed + 'px' : '100%';
         } else if (axis === 'y') {
             var neededH = count * per + 24;
             track.style.height = neededH > viewport.clientHeight ? neededH + 'px' : '100%';
@@ -618,24 +667,38 @@
     function refreshShell(viewport) {
         var shell = viewport.closest('[data-scroll-shell]');
         if (!shell) { return; }
-        shell.classList.toggle('is-overflowing-x', viewport.scrollWidth > viewport.clientWidth + 2);
+        var overflowing = viewport.scrollWidth > viewport.clientWidth + 2;
+        shell.classList.toggle('is-overflowing-x', overflowing);
+        shell.classList.toggle('is-scrolled-start', viewport.scrollLeft <= 2);
+        var atEnd = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 4;
+        shell.classList.toggle('is-scrolled-end', !overflowing || atEnd);
     }
 
     function wireShells() {
         document.querySelectorAll('[data-viewport]').forEach(function (viewport) {
-            viewport.addEventListener('scroll', function () {
-                var shell = viewport.closest('[data-scroll-shell]');
-                if (!shell) { return; }
-                var atEnd = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 4;
-                shell.classList.toggle('is-scrolled-end', atEnd);
-            }, { passive: true });
+            refreshShell(viewport);
+            viewport.addEventListener('scroll', function () { refreshShell(viewport); }, { passive: true });
         });
     }
 
     /* ---------------- Shared helpers ---------------- */
-    function truncate(label) {
+    // maxChars scales with how many pixels each category actually owns
+    // (the same "per" value used to size the scroll track), so labels are
+    // guaranteed to fit their slot instead of spilling into their neighbour.
+    function truncate(label, maxChars) {
         label = String(label == null ? '' : label);
-        return label.length > 16 ? label.slice(0, 15) + '…' : label;
+        var limit = maxChars || 16;
+        return label.length > limit ? label.slice(0, Math.max(1, limit - 1)) + '…' : label;
+    }
+
+    function charsForPer(per) {
+        // ~6.2px per character at the dashboard's 11px tick font, minus a
+        // small margin so adjacent rotated/adjacent labels never touch.
+        return Math.max(6, Math.floor((per - 14) / 6.2));
+    }
+
+    function tickFontSize() {
+        return window.innerWidth < 576 ? 10 : 11;
     }
 
     function fullLabelTitle(items) {
@@ -659,6 +722,7 @@
             maintainAspectRatio: false,
             animation: { duration: 400 },
             interaction: { mode: 'index', intersect: false },
+            layout: { padding: { top: 6, left: 2, right: 2, bottom: 0 } },
             plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -697,6 +761,7 @@
         });
 
         sizeTrack('singleBarChart', projectNames.length);
+        var progressChars = charsForPer(86);
 
         register('singleBarChart', {
             type: 'bar',
@@ -708,8 +773,9 @@
                     backgroundColor: colors,
                     borderRadius: 6,
                     borderSkipped: false,
+                    maxBarThickness: 46,
                     barPercentage: 0.6,
-                    categoryPercentage: 0.8
+                    categoryPercentage: 0.72
                 }]
             },
             options: baseOptions({
@@ -721,7 +787,14 @@
                         grid: { color: t.grid, drawBorder: false }
                     },
                     x: {
-                        ticks: { color: t.inkSoft, maxRotation: 0, autoSkip: false, callback: function (v, i) { return truncate(projectNames[i]); } },
+                        offset: true,
+                        ticks: {
+                            color: t.inkSoft,
+                            font: { size: tickFontSize() },
+                            maxRotation: 0,
+                            autoSkip: false,
+                            callback: function (v, i) { return truncate(projectNames[i], progressChars); }
+                        },
                         grid: { display: false, color: t.grid }
                     }
                 },
@@ -754,6 +827,7 @@
 
         var t = readTokens();
         sizeTrack('taskBarChart', projectNames.length);
+        var taskChars = charsForPer(96);
 
         function namesFor(datasetIndex, index) {
             var source = [initiatedNames, inprogressNames, completedNames][datasetIndex] || [];
@@ -765,17 +839,24 @@
             data: {
                 labels: projectNames,
                 datasets: [
-                    { label: 'Initiated', data: initiatedTasks, backgroundColor: PALETTE.initiated, borderRadius: 4, barPercentage: 0.62 },
-                    { label: 'In progress', data: inprogressTasks, backgroundColor: PALETTE.progress, borderRadius: 4, barPercentage: 0.62 },
-                    { label: 'Completed', data: completedTasks, backgroundColor: PALETTE.completed, borderRadius: 4, barPercentage: 0.62 }
+                    { label: 'Initiated', data: initiatedTasks, backgroundColor: PALETTE.initiated, borderRadius: 4, maxBarThickness: 40, barPercentage: 0.62, categoryPercentage: 0.72 },
+                    { label: 'In progress', data: inprogressTasks, backgroundColor: PALETTE.progress, borderRadius: 4, maxBarThickness: 40, barPercentage: 0.62, categoryPercentage: 0.72 },
+                    { label: 'Completed', data: completedTasks, backgroundColor: PALETTE.completed, borderRadius: 4, maxBarThickness: 40, barPercentage: 0.62, categoryPercentage: 0.72 }
                 ]
             },
             options: baseOptions({
                 scales: {
                     x: {
                         stacked: true,
+                        offset: true,
                         grid: { display: false, color: t.grid },
-                        ticks: { color: t.inkSoft, maxRotation: 0, autoSkip: false, callback: function (v, i) { return truncate(projectNames[i]); } }
+                        ticks: {
+                            color: t.inkSoft,
+                            font: { size: tickFontSize() },
+                            maxRotation: 0,
+                            autoSkip: false,
+                            callback: function (v, i) { return truncate(projectNames[i], taskChars); }
+                        }
                     },
                     y: {
                         stacked: true,
@@ -813,22 +894,30 @@
 
         var t = readTokens();
         sizeTrack('workloadBarChart', workloadMembers.length);
+        var workloadChars = charsForPer(86);
 
         register('workloadBarChart', {
             type: 'bar',
             data: {
                 labels: workloadMembers,
                 datasets: [
-                    { label: 'Initiated', data: workloadInitiated, backgroundColor: PALETTE.initiated, borderRadius: 4, barPercentage: 0.6, categoryPercentage: 0.8 },
-                    { label: 'In progress', data: workloadInProgress, backgroundColor: PALETTE.progress, borderRadius: 4, barPercentage: 0.6, categoryPercentage: 0.8 }
+                    { label: 'Initiated', data: workloadInitiated, backgroundColor: PALETTE.initiated, borderRadius: 4, maxBarThickness: 40, barPercentage: 0.6, categoryPercentage: 0.72 },
+                    { label: 'In progress', data: workloadInProgress, backgroundColor: PALETTE.progress, borderRadius: 4, maxBarThickness: 40, barPercentage: 0.6, categoryPercentage: 0.72 }
                 ]
             },
             options: baseOptions({
                 scales: {
                     x: {
                         stacked: true,
+                        offset: true,
                         grid: { display: false, color: t.grid },
-                        ticks: { color: t.inkSoft, maxRotation: 0, autoSkip: false, callback: function (v, i) { return truncate(workloadMembers[i]); } }
+                        ticks: {
+                            color: t.inkSoft,
+                            font: { size: tickFontSize() },
+                            maxRotation: 0,
+                            autoSkip: false,
+                            callback: function (v, i) { return truncate(workloadMembers[i], workloadChars); }
+                        }
                     },
                     y: {
                         stacked: true,
@@ -870,6 +959,7 @@
 
         var t = readTokens();
         sizeTrack('lastYearChart', labels.length);
+        var historyChars = charsForPer(64);
 
         register('lastYearChart', {
             type: 'bar',
@@ -880,14 +970,27 @@
                     data: values,
                     backgroundColor: PALETTE.teal,
                     borderRadius: 6,
-                    barPercentage: 0.55
+                    maxBarThickness: 36,
+                    barPercentage: 0.55,
+                    categoryPercentage: 0.7
                 }]
             },
             options: baseOptions({
                 scales: {
                     y: { beginAtZero: true, ticks: { color: t.inkSoft, precision: 0 }, grid: { color: t.grid, drawBorder: false } },
-                    x: { ticks: { color: t.inkSoft, maxRotation: 0 }, grid: { display: false, color: t.grid } }
-                }
+                    x: {
+                        offset: true,
+                        ticks: {
+                            color: t.inkSoft,
+                            font: { size: tickFontSize() },
+                            maxRotation: 0,
+                            autoSkip: false,
+                            callback: function (v, i) { return truncate(String(labels[i]), historyChars); }
+                        },
+                        grid: { display: false, color: t.grid }
+                    }
+                },
+                plugins: { legend: { display: false }, tooltip: { callbacks: { title: fullLabelTitle } } }
             })
         });
     }
@@ -950,11 +1053,24 @@
             sizeTrack('taskBarChart', projectNames.length);
             sizeTrack('workloadBarChart', workloadMembers.length);
             sizeTrack('lastYearChart', (yearsRange.length ? yearsRange : lastYearMonths).length);
+
+            var size = tickFontSize();
+            charts.forEach(function (chart) {
+                var scales = chart.options.scales;
+                if (scales && scales.x && scales.x.ticks) {
+                    scales.x.ticks.font = { size: size };
+                }
+                chart.resize();
+            });
         }
         window.addEventListener('resize', function () {
             window.clearTimeout(resizeTimer);
             resizeTimer = window.setTimeout(remeasure, 150);
         });
+        window.addEventListener('load', remeasure);
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(remeasure);
+        }
         document.querySelectorAll('#sidebarCollapseBtn').forEach(function (btn) {
             btn.addEventListener('click', function () { window.setTimeout(remeasure, 280); });
         });
