@@ -189,8 +189,7 @@ def login():
     return render_template('login.html', error=error)
 
 # --- Gmail SMTP Configuration ---
-SENDER_GMAIL = os.environ.get('MAIL_USERNAME', 'workwithhisham@gmail.com')
-APP_PASSWORD = os.environ.get('MAIL_PASSWORD', 'jacp msii oyxx yrol')
+
 
 def send_otp_email(user_email, otp):
     try:
