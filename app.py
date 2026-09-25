@@ -16,12 +16,11 @@ import re
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
+
 app = Flask(__name__)
 app.secret_key = 'ncp_secret_key'
 
 # MySQL Database Configuration
-
-# Railway ke actual variable names se values uthane ke liye:
 DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
@@ -404,6 +403,20 @@ def resend_otp():
     flash('A new OTP has been resent to your Gmail.', 'info')
     return redirect(url_for('verify_otp_page'))
 
+# --- Password Strength Validation Helper ---
+def is_strong_password(password):
+    # Minimum 8 characters, at least one letter (upper or lower), one number, and one special character
+    if len(password) < 8:
+        return False
+    if not re.search(r"[a-zA-Z]", password):  # Letter (upper or lower)
+        return False
+    if not re.search(r"[0-9]", password):     # Number
+        return False
+    if not re.search(r"[@$!%*?&]", password): # Special character
+        return False
+    return True
+
+# --- Forgot Password Route ---
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     error = None
@@ -444,6 +457,7 @@ def forgot_password():
         
     return render_template('forgot_password.html', error=error)
 
+# --- Email Sending Function ---
 def send_reset_link_email(user_email, reset_link):
     try:
         msg = MIMEMultipart("alternative")
@@ -476,6 +490,7 @@ def send_reset_link_email(user_email, reset_link):
         print(f"*** GMAIL SMTP EXCEPTION: {e} ***")
         return False
 
+# --- Reset Password with Token Route ---
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password_with_token(token):
     conn = get_db_connection()
@@ -499,6 +514,8 @@ def reset_password_with_token(token):
         
         if new_password != confirm_password:
             error = 'Passwords do not match!'
+        elif not is_strong_password(new_password):
+            error = 'Password must be at least 8 characters long and include at least one letter, one number, and one special character.'
         else:
             cursor.execute(
                 'UPDATE app_users SET password = %s, reset_token = NULL, token_expiry = NULL WHERE id = %s',
@@ -738,11 +755,24 @@ def edit_message(message_id):
     
     receiver_id = None
     try:
-        cursor.execute("SELECT sender_id, receiver_id FROM messages WHERE id = %s", (message_id,))
+        # Note: Agar aapke database mein time wale column ka naam 'created_at' hai, 
+        # toh 'timestamp' ki jagah 'created_at' likh lijiyega.
+        cursor.execute("SELECT sender_id, receiver_id, timestamp FROM messages WHERE id = %s", (message_id,))
         msg = cursor.fetchone()
         
         if msg and msg['sender_id'] == current_user_id:
             receiver_id = msg['receiver_id']
+            
+            # 30 Minutes Time Check for Editing
+            if msg['timestamp']:
+                if datetime.now() - msg['timestamp'] > timedelta(minutes=30):
+                    print("Edit limit exceeded (more than 30 minutes).")
+                    cursor.close()
+                    conn.close()
+                    if receiver_id:
+                        return redirect(url_for('messages_hub', receiver_id=receiver_id))
+                    return redirect(url_for('messages_hub'))
+
             cursor.execute("""
                 UPDATE messages 
                 SET message = %s, is_edited = 1 
@@ -774,16 +804,28 @@ def delete_message(message_id):
     
     receiver_id = None
     try:
-        cursor.execute("SELECT sender_id, receiver_id FROM messages WHERE id = %s", (message_id,))
+        cursor.execute("SELECT sender_id, receiver_id, timestamp FROM messages WHERE id = %s", (message_id,))
         msg = cursor.fetchone()
         
         if msg:
             receiver_id = msg['receiver_id'] if msg['sender_id'] == current_user_id else msg['sender_id']
             
             if delete_type == 'everyone' and msg['sender_id'] == current_user_id:
+                # 30 Minutes Time Check sirf 'Delete for Everyone' ke liye
+                if msg['timestamp']:
+                    if datetime.now() - msg['timestamp'] > timedelta(minutes=30):
+                        print("Delete for everyone limit exceeded (more than 30 minutes).")
+                        cursor.close()
+                        conn.close()
+                        if receiver_id:
+                            return redirect(url_for('messages_hub', receiver_id=receiver_id))
+                        return redirect(url_for('messages_hub'))
+
                 cursor.execute("UPDATE messages SET is_deleted_everyone = 1 WHERE id = %s", (message_id,))
                 conn.commit()
+                
             elif delete_type == 'me':
+                # Delete for me par koi time restriction nahi hai
                 if msg['sender_id'] == current_user_id:
                     cursor.execute("UPDATE messages SET deleted_by_sender = 1 WHERE id = %s", (message_id,))
                 else:
