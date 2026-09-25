@@ -139,7 +139,7 @@
                         {% for msg in chat_messages %}
                             {% if msg.sender_id == session.get('user_id') %}
                                 <!-- Outgoing Message -->
-                                <div class="message-bubble message-outgoing shadow-sm position-relative pe-4">
+                                <div class="message-bubble message-outgoing shadow-sm position-relative pe-4" data-msg-timestamp="{{ msg.timestamp.timestamp() if msg.timestamp else 0 }}">
                                     {% if msg.attachment %}
                                         <div class="mb-2">
                                             {% set file_url = url_for('static', filename=msg.attachment if msg.attachment.startswith('uploads/') else 'uploads/' + msg.attachment) %}
@@ -356,6 +356,21 @@
 {% block extra_js %}
 <script>
     function enableEditMessage(messageId) {
+        const bubbleEl = document.getElementById('msg-text-' + messageId).closest('.message-bubble');
+        if (bubbleEl) {
+            const timestampAttr = bubbleEl.getAttribute('data-msg-timestamp');
+            if (timestampAttr) {
+                const msgTime = parseFloat(timestampAttr) * 1000;
+                const currentTime = new Date().getTime();
+                const diffMinutes = (currentTime - msgTime) / (1000 * 60);
+
+                if (diffMinutes > 30) {
+                    alert("You can only edit messages within 30 minutes of sending.");
+                    return;
+                }
+            }
+        }
+
         const messageText = document.getElementById('msg-text-' + messageId).innerText;
         document.getElementById('editMessageInput').value = messageText;
         document.getElementById('editMessageForm').action = "/edit_message/" + messageId;
@@ -368,7 +383,22 @@
         document.getElementById('deleteMessageForm').action = "/delete_message/" + messageId;
         
         const everyoneBtn = document.getElementById('deleteEveryoneBtn');
-        if (isSender) {
+        const bubbleEl = document.getElementById('msg-text-' + messageId).closest('.message-bubble');
+        
+        let within30Mins = true;
+        if (bubbleEl) {
+            const timestampAttr = bubbleEl.getAttribute('data-msg-timestamp');
+            if (timestampAttr) {
+                const msgTime = parseFloat(timestampAttr) * 1000;
+                const currentTime = new Date().getTime();
+                const diffMinutes = (currentTime - msgTime) / (1000 * 60);
+                if (diffMinutes > 30) {
+                    within30Mins = false;
+                }
+            }
+        }
+
+        if (isSender && within30Mins) {
             everyoneBtn.style.display = 'block';
         } else {
             everyoneBtn.style.display = 'none';
@@ -379,6 +409,24 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
+        // Hide edit buttons automatically if 30 minutes have passed
+        document.querySelectorAll('.message-bubble[data-msg-timestamp]').forEach(bubble => {
+            const timestampAttr = bubble.getAttribute('data-msg-timestamp');
+            if (timestampAttr) {
+                const msgTime = parseFloat(timestampAttr) * 1000;
+                const currentTime = new Date().getTime();
+                const diffMinutes = (currentTime - msgTime) / (1000 * 60);
+
+                if (diffMinutes > 30) {
+                    const editBtnLi = bubble.querySelector('[onclick^="enableEditMessage"]');
+                    if (editBtnLi) {
+                        const parentLi = editBtnLi.closest('li');
+                        if (parentLi) parentLi.style.display = 'none';
+                    }
+                }
+            }
+        });
+
         const clearBtn = document.getElementById('clearChatBtn');
         if (clearBtn) {
             clearBtn.addEventListener('click', function(e) {
@@ -428,7 +476,6 @@
             });
         }
 
-        // Instant Scroll Setup & AJAX Form Submission to Prevent Page Reload
         const container = document.getElementById('chatMessagesContainer');
         if (container) {
             const scrollKey = "chat_scroll_" + "{{ active_receiver.id if active_receiver else 'none' }}";
@@ -447,11 +494,9 @@
             const chatForm = document.getElementById('chatMessageForm');
             if (chatForm) {
                 chatForm.addEventListener('submit', function(e) {
-                    e.preventDefault(); // Stop normal page-reloading submit
+                    e.preventDefault();
 
                     const formData = new FormData(chatForm);
-                    
-                    // Don't send if both message input and file are empty
                     const msgInputVal = document.getElementById('chatMessageInput').value.trim();
                     if (!msgInputVal && (!fileInput.files || fileInput.files.length === 0)) {
                         return;
@@ -463,21 +508,18 @@
                     })
                     .then(response => {
                         if (response.ok) {
-                            // Reset input and attachment preview instantly without reloading
                             chatForm.reset();
                             previewContainer.classList.remove('d-flex');
                             previewContainer.classList.add('d-none');
                             
                             sessionStorage.removeItem(scrollKey);
-                            // Refresh just the chat container or reload silently / fetch latest messages
-                            location.reload(); // Reloads smoothly or keeps state. For true instant append without reload, location.reload can be kept if backend handles redirect, but since it's AJAX it updates smoothly. Let's make it smooth:
+                            location.reload(); 
                         } else {
                             alert("Failed to send message.");
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
-                        // Fallback to normal submit if fetch encounters network issue
                         chatForm.submit();
                     });
                 });
